@@ -27,7 +27,7 @@ pip install prometheus_client
 # Copy example config in place, edit to your needs
 sudo cp prometheus-openstack-exporter.yaml /etc/prometheus/
 
-# Install upstrt job
+# Install upstart job
 sudo cp prometheus-openstack-exporter.conf /etc/default
 
 # Configure novarc location:
@@ -67,5 +67,5 @@ Swift stats are included mainly because they are trivial to retrieve. If and whe
 
 ## Why cache data?
 
-We are aware that Prometheus best practise is to avoid caching. Unfortunately queries we need to run are very heavy and in bigger clouds can take minutes to execute. This is problematic not only because of delays but also becaseuse multiple servers scraping the exporter could have negative impact on the cloud performance
+We are aware that Prometheus best practise is to avoid caching. Unfortunately queries we need to run are very heavy and in bigger clouds can take minutes to execute. This is problematic not only because of delays but also because multiple servers scraping the exporter could have negative impact on the cloud performance
 
