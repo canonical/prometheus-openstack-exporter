@@ -33,7 +33,9 @@ import requests
 from time import sleep, time
 from neutronclient.v2_0 import client as neutron_client
 from keystoneclient.v2_0 import client as keystone_client
-from novaclient.v1_1 import client as nova_client
+#from novaclient.v1_1 import client as nova_client
+# http://docs.openstack.org/developer/python-novaclient/api.html
+from novaclient import client as nova_client
 from BaseHTTPServer import BaseHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
 from SocketServer import ForkingMixIn
@@ -59,10 +61,11 @@ class DataGatherer(Thread):
             "region_name": env['OS_REGION_NAME']
         }
         creds_nova = [
+            2,
             env['OS_USERNAME'],
             env['OS_PASSWORD'],
             env['OS_TENANT_NAME'],
-            env['OS_AUTH_URL']
+            env['OS_AUTH_URL'],
         ]
 
         while True:
@@ -95,7 +98,7 @@ class DataGatherer(Thread):
                     else:
                         break
             except:
-                # Ignore failures, we will try again after refresh_interfal.
+                # Ignore failures, we will try again after refresh_interval.
                 # Most of them are termporary ie. connectivity problmes
                 # To alert on stale cache use openstack_exporter_cache_age_seconds metric
                 print(traceback.format_exc())
@@ -331,12 +334,23 @@ class Swift():
                        'remove', 'rsync', 'success', 'ts_repl']
             # Object replication is special
             r = requests.get(self.baseurl.format(h, 'replication/object'))
-            swift_repl_duration.labels(config['cloud'], h, 'object').set(r.json()['object_replication_time'])
+            try:
+                swift_repl_duration.labels(config['cloud'], h, 'object').set(r.json()['object_replication_time'])
+            except TypeError:
+                print(traceback.format_exc())
+
             for ring in ['account', 'container']:
                 r = requests.get(self.baseurl.format(h, 'replication/' + ring))
-                swift_repl_duration.labels(config['cloud'], h, ring).set(r.json()['replication_time'])
+                try:
+                    swift_repl_duration.labels(config['cloud'], h, ring).set(r.json()['replication_time'])
+                except TypeError:
+                    print(traceback.format_exc())
+
                 for metric in metrics:
-                    swift_repl.labels(config['cloud'], h, ring, metric).set(r.json()['replication_stats'][metric])
+                    try:
+                        swift_repl.labels(config['cloud'], h, ring, metric).set(r.json()['replication_stats'][metric])
+                    except TypeError:
+                        print(traceback.format_exc())
 
     def get_stats(self):
         self.gen_disk_usage_stats()
