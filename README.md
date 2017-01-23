@@ -27,11 +27,29 @@ pip install prometheus_client
 # Copy example config in place, edit to your needs
 sudo cp prometheus-openstack-exporter.yaml /etc/prometheus/
 
-# Install upstart job
-sudo cp prometheus-openstack-exporter.conf /etc/default
+## Upstart
+# Install job
+sudo cp prometheus-openstack-exporter.conf /etc/init
 
 # Configure novarc location:
 sudo sh -c 'echo "NOVARC=/path/to/admin-novarc">/etc/default/prometheus-openstack-exporter'
+
+## Systemd
+# Install job
+sudo cp prometheus-openstack-exporter.service /etc/systemd/system/
+
+# create novarc
+sudo cat <<EOF > /etc/prometheus-openstack-exporter/admin.novarc
+export OS_USERNAME=Admin
+export OS_TENANT_NAME=admin
+export OS_PASSWORD=XXXX
+export OS_REGION_NAME=cloudname
+export OS_AUTH_URL=http://XX.XX.XX.XX:35357/v2.0
+EOF
+
+# create default config location
+sudo sh -c 'echo "CONFIG_FILE=/etc/prometheus-openstack-exporter/prometheus-openstack-exporter.yaml">/etc/default/prometheus-openstack-exporter'
+
 
 # Start
 sudo start prometheus-openstack-exporter
