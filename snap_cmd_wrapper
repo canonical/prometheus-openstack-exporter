@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# Copy only if not existing
+: ${SNAP?} ${SNAPDATA?}
+cp -pn $SNAP/etc/prometheus/prometheus-openstack-exporter.yaml.example $SNAP_DATA/prometheus-openstack-exporter.yaml
+exec $SNAP/bin/prometheus-openstack-exporter $SNAP_DATA/prometheus-openstack-exporter.yaml
