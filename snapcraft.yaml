@@ -1,0 +1,32 @@
+name: prometheus-openstack-exporter
+version: 0.0.1
+summary: Exposes high level OpenStack metrics to Prometheus.
+description: |
+  Exposes high level OpenStack metrics to Prometheus
+
+confinement: strict
+grade: devel
+apps:
+  prometheus-openstack-exporter:
+    command: 'bin/prometheus-openstack-exporter.wrapper'
+    plugs: [network-bind, network]
+    daemon: simple
+parts:
+  prometheus-openstack-exporter:
+    plugin: python
+    python-version: python2
+    source: .
+  example-config:
+    plugin: dump
+    source: .
+    organize:
+      prometheus-openstack-exporter.yaml: etc/prometheus/prometheus-openstack-exporter.yaml.example
+    prime:
+      - etc/prometheus/prometheus-openstack-exporter.yaml.example
+  snap-wrappers:
+    plugin: dump
+    source: .
+    organize:
+      snap_cmd_wrapper: bin/prometheus-openstack-exporter.wrapper
+    prime:
+      - bin/prometheus-openstack-exporter.wrapper
