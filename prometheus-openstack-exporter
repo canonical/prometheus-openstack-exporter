@@ -60,19 +60,20 @@ class DataGatherer(Thread):
             "auth_url": env['OS_AUTH_URL'],
             "region_name": env['OS_REGION_NAME']
         }
-        creds_nova = [
-            2,
-            env['OS_USERNAME'],
-            env['OS_PASSWORD'],
-            env['OS_TENANT_NAME'],
-            env['OS_AUTH_URL'],
-        ]
+        creds_nova = {
+            "username": env['OS_USERNAME'],
+            "api_key": env['OS_PASSWORD'],
+            "auth_url": env['OS_AUTH_URL'],
+            "region_name": env['OS_REGION_NAME']
+        }
 
         while True:
             start_time = time()
             try:
                 keystone = keystone_client.Client(**creds)
-                nova = nova_client.Client(*creds_nova, region_name=env['OS_REGION_NAME'])
+                # lp#1233492
+                creds_nova["tenant_id"] = keystone.tenant_id
+                nova = nova_client.Client(2, **creds_nova)
                 neutron = neutron_client.Client(**creds)
 
                 prodstack['tenants'] = [x._info for x in keystone.tenants.list()]

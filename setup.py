@@ -7,7 +7,7 @@ def read(fname):
 
 setup(
     name="prometheus_openstack_exporter",
-    version="0.0.1",
+    version="0.0.2",
     author="Jacek Nykis",
     description="Exposes high level OpenStack metrics to Prometheus.",
     license="GPLv3",
