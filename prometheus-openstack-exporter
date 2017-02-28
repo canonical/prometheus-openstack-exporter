@@ -33,7 +33,7 @@ import requests
 from time import sleep, time
 from neutronclient.v2_0 import client as neutron_client
 from keystoneclient.v2_0 import client as keystone_client
-#from novaclient.v1_1 import client as nova_client
+# from novaclient.v1_1 import client as nova_client
 # http://docs.openstack.org/developer/python-novaclient/api.html
 from novaclient import client as nova_client
 from BaseHTTPServer import BaseHTTPRequestHandler
@@ -219,13 +219,22 @@ class Nova():
             self.aggregate_map.update({i: agg['name'] for i in agg['hosts']})
 
     def _get_schedulable_instances(self, host):
-            free_vcpus = host['vcpus'] * config['openstack_allocation_ratio_vcpu'] - host['vcpus_used']
-            free_ram_mbs = host['memory_mb'] * config['openstack_allocation_ratio_ram'] - host['memory_mb_used']
-            free_disk_gbs = host['local_gb'] * config['openstack_allocation_ratio_disk'] - host['local_gb_used']
-            s = config['schedulable_instance_size']
-            return min(int(free_vcpus / s['vcpu']),
-                       int(free_ram_mbs / s['ram_mbs']),
-                       int(free_disk_gbs / s['disk_gbs']))
+        free_vcpus = host['vcpus'] * config['openstack_allocation_ratio_vcpu'] - host['vcpus_used']
+        free_ram_mbs = host['memory_mb'] * config['openstack_allocation_ratio_ram'] - host['memory_mb_used']
+        free_disk_gbs = host['local_gb'] * config['openstack_allocation_ratio_disk'] - host['local_gb_used']
+        s = config['schedulable_instance_size']
+        return min(int(free_vcpus / s['vcpu']),
+                   int(free_ram_mbs / s['ram_mbs']),
+                   int(free_disk_gbs / s['disk_gbs']))
+
+    def _get_schedulable_instances_capacity(self, host):
+        capacity_vcpus = host['vcpus'] * config['openstack_allocation_ratio_vcpu']
+        capacity_ram_mbs = host['memory_mb'] * config['openstack_allocation_ratio_ram']
+        capacity_disk_gbs = host['local_gb'] * config['openstack_allocation_ratio_disk']
+        s = config['schedulable_instance_size']
+        return min(int(capacity_vcpus / s['vcpu']),
+                   int(capacity_ram_mbs / s['ram_mbs']),
+                   int(capacity_disk_gbs / s['disk_gbs']))
 
     def gen_hypervisor_stats(self):
         labels = ['cloud', 'hypervisor_hostname', 'aggregate', 'nova_service_status']
@@ -239,6 +248,9 @@ class Nova():
         schedulable_instances = Gauge('hypervisor_schedulable_instances',
                                       'Number of schedulable instances, see "schedulable_instance_size" option',
                                       labels, registry=self.registry)
+        schedulable_instances_capacity = Gauge('hypervisor_schedulable_instances_capacity',
+                                               'Number of schedulable instances we have capacity for',
+                                               labels, registry=self.registry)
 
         for h in self.hypervisors:
             host = h['service']['host']
@@ -252,6 +264,7 @@ class Nova():
             disk_used.labels(*l).set(h['local_gb_used'])
             if config.get("schedulable_instance_size", False):
                 schedulable_instances.labels(*l).set(self._get_schedulable_instances(h))
+                schedulable_instances_capacity.labels(*l).set(self._get_schedulable_instances_capacity(h))
 
     def gen_instance_stats(self):
         instances = Gauge('nova_instances',
