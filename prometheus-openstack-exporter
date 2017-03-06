@@ -23,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
 import yaml
+import json
 from os import environ as env
 from os import rename, path
 import traceback
@@ -228,7 +229,7 @@ class Nova():
                        int(free_disk_gbs / s['disk_gbs']))
 
     def gen_hypervisor_stats(self):
-        labels = ['cloud', 'hypervisor_hostname', 'aggregate', 'nova_service_status']
+        labels = ['cloud', 'hypervisor_hostname', 'aggregate', 'nova_service_status', 'arch']
         vms = Gauge('hypervisor_running_vms', 'Number of running VMs', labels, registry=self.registry)
         vcpus_total = Gauge('hypervisor_vcpus_total', 'Total number of vCPUs', labels, registry=self.registry)
         vcpus_used = Gauge('hypervisor_vcpus_used', 'Number of used vCPUs', labels, registry=self.registry)
@@ -242,7 +243,11 @@ class Nova():
 
         for h in self.hypervisors:
             host = h['service']['host']
-            l = [config['cloud'], host, self.aggregate_map.get(host, 'unknown'), self.services_map[host]]
+            cpu_info = h['cpu_info']
+            if type(cpu_info) != dict:
+                cpu_info = json.loads(cpu_info)
+            arch = cpu_info['arch']
+            l = [config['cloud'], host, self.aggregate_map.get(host, 'unknown'), self.services_map[host], arch]
             vms.labels(*l).set(h['running_vms'])
             vcpus_total.labels(*l).set(h['vcpus'])
             vcpus_used.labels(*l).set(h['vcpus_used'])
