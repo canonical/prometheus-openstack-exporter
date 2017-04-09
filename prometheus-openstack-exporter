@@ -67,12 +67,17 @@ class DataGatherer(Thread):
             env['OS_TENANT_NAME'],
             env['OS_AUTH_URL'],
         ]
+        creds_nova_kw = {}
+        ca_cert = env.get("OS_CACERT", None)
+        if ca_cert:
+            creds["cacert"] = ca_cert
+            creds_nova_kw["cacert"] = ca_cert
 
         while True:
             start_time = time()
             try:
                 keystone = keystone_client.Client(**creds)
-                nova = nova_client.Client(*creds_nova)
+                nova = nova_client.Client(*creds_nova, **creds_nova_kw)
                 neutron = neutron_client.Client(**creds)
 
                 prodstack['tenants'] = [x._info for x in keystone.tenants.list()]
