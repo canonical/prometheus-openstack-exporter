@@ -266,6 +266,7 @@ class Nova():
                 schedulable_instances_capacity.labels(*l).set(self._get_schedulable_instances_capacity(h))
 
     def gen_instance_stats(self):
+        missing_flavors = False
         instances = Gauge('nova_instances',
                           'Nova instances metrics',
                           ['cloud', 'tenant', 'instance_state'], registry=self.registry)
@@ -283,12 +284,27 @@ class Nova():
                 tenant = self.tenant_map[i['tenant_id']]
             else:
                 tenant = 'orphaned'
-            flavor = self.flavor_map[i['flavor']['id']]
-
             instances.labels(config['cloud'], tenant, i['status']).inc()
-            res_ram.labels(config['cloud'], tenant).inc(flavor['ram'])
-            res_vcpus.labels(config['cloud'], tenant).inc(flavor['vcpus'])
-            res_disk.labels(config['cloud'], tenant).inc(flavor['disk'])
+
+            if i['flavor']['id'] in self.flavor_map:
+                flavor = self.flavor_map[i['flavor']['id']]
+                res_ram.labels(config['cloud'], tenant).inc(flavor['ram'])
+                res_vcpus.labels(config['cloud'], tenant).inc(flavor['vcpus'])
+                res_disk.labels(config['cloud'], tenant).inc(flavor['disk'])
+            else:
+                missing_flavors = True
+
+        # If flavors were deleted we can't reliably find out resouerce use
+        if missing_flavors:
+            self.registry.unregister(res_ram)
+            self.registry.unregister(res_vcpus)
+            self.registry.unregister(res_disk)
+            res_ram = Gauge('nova_resources_ram_mbs', 'Nova RAM usage metric unavailable, missing flavors',
+                            [], registry=self.registry)
+            res_vcpus = Gauge('nova_resources_vcpus', 'Nova vCPU usage metric unavailable, missing flavors',
+                              [], registry=self.registry)
+            res_disk = Gauge('nova_resources_disk_gbs', 'Nova disk usage metric unavailable, missing flavors',
+                             [], registry=self.registry)
 
     def gen_overcommit_stats(self):
         labels = ['cloud', 'resource']
@@ -317,10 +333,10 @@ class Swift():
     def gen_up_stats(self):
         labels = ['cloud', 'hostname']
         swift_up = Gauge('swift_host_up', 'Swift host reachability',
-                          labels, registry=self.registry)
+                         labels, registry=self.registry)
         for h in self.swift_hosts:
             try:
-                r = requests.get(self.baseurl.format(h, 'diskusage'))
+                requests.get(self.baseurl.format(h, 'diskusage'))
                 swift_up.labels(config['cloud'], h).set(1)
             except:
                 swift_up.labels(config['cloud'], h).set(0)
