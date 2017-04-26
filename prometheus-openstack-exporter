@@ -271,6 +271,7 @@ class Nova():
                 schedulable_instances_capacity.labels(*l).set(self._get_schedulable_instances_capacity(h))
 
     def gen_instance_stats(self):
+        missing_flavors = False
         instances = Gauge('nova_instances',
                           'Nova instances metrics',
                           ['cloud', 'tenant', 'instance_state'], registry=self.registry)
@@ -288,12 +289,27 @@ class Nova():
                 tenant = self.tenant_map[i['tenant_id']]
             else:
                 tenant = 'orphaned'
-            flavor = self.flavor_map[i['flavor']['id']]
-
             instances.labels(config['cloud'], tenant, i['status']).inc()
-            res_ram.labels(config['cloud'], tenant).inc(flavor['ram'])
-            res_vcpus.labels(config['cloud'], tenant).inc(flavor['vcpus'])
-            res_disk.labels(config['cloud'], tenant).inc(flavor['disk'])
+
+            if i['flavor']['id'] in self.flavor_map:
+                flavor = self.flavor_map[i['flavor']['id']]
+                res_ram.labels(config['cloud'], tenant).inc(flavor['ram'])
+                res_vcpus.labels(config['cloud'], tenant).inc(flavor['vcpus'])
+                res_disk.labels(config['cloud'], tenant).inc(flavor['disk'])
+            else:
+                missing_flavors = True
+
+        # If flavors were deleted we can't reliably find out resouerce use
+        if missing_flavors:
+            self.registry.unregister(res_ram)
+            self.registry.unregister(res_vcpus)
+            self.registry.unregister(res_disk)
+            res_ram = Gauge('nova_resources_ram_mbs', 'Nova RAM usage metric unavailable, missing flavors',
+                            [], registry=self.registry)
+            res_vcpus = Gauge('nova_resources_vcpus', 'Nova vCPU usage metric unavailable, missing flavors',
+                              [], registry=self.registry)
+            res_disk = Gauge('nova_resources_disk_gbs', 'Nova disk usage metric unavailable, missing flavors',
+                             [], registry=self.registry)
 
     def gen_overcommit_stats(self):
         labels = ['cloud', 'resource']
@@ -319,12 +335,26 @@ class Swift():
         self.baseurl = 'http://{}:6000/recon/{}'
         self.swift_hosts = config.get('swift_hosts', [])
 
+    def gen_up_stats(self):
+        labels = ['cloud', 'hostname']
+        swift_up = Gauge('swift_host_up', 'Swift host reachability',
+                         labels, registry=self.registry)
+        for h in self.swift_hosts:
+            try:
+                requests.get(self.baseurl.format(h, 'diskusage'))
+                swift_up.labels(config['cloud'], h).set(1)
+            except:
+                swift_up.labels(config['cloud'], h).set(0)
+
     def gen_disk_usage_stats(self):
         labels = ['cloud', 'hostname', 'device', 'type']
         swift_disk = Gauge('swift_disk_usage_bytes', 'Swift disk usage in bytes',
                            labels, registry=self.registry)
         for h in self.swift_hosts:
-            r = requests.get(self.baseurl.format(h, 'diskusage'))
+            try:
+                r = requests.get(self.baseurl.format(h, 'diskusage'))
+            except:
+                return
             for disk in r.json():
                 if not all([disk.get(i, False) for i in ['size', 'used', 'device']]):
                     continue
@@ -336,7 +366,10 @@ class Swift():
         swift_quarantine = Gauge('swift_quarantined_objects', 'Number of quarantined objects',
                                  labels, registry=self.registry)
         for h in self.swift_hosts:
-            r = requests.get(self.baseurl.format(h, 'quarantined'))
+            try:
+                r = requests.get(self.baseurl.format(h, 'quarantined'))
+            except:
+                return
             for ring in ['accounts', 'objects', 'containers']:
                 swift_quarantine.labels(config['cloud'], h, ring).set(r.json().get(ring))
 
@@ -351,14 +384,20 @@ class Swift():
                        'failure', 'hashmatch', 'no_change', 'remote_merge',
                        'remove', 'rsync', 'success', 'ts_repl']
             # Object replication is special
-            r = requests.get(self.baseurl.format(h, 'replication/object'))
+            try:
+                r = requests.get(self.baseurl.format(h, 'replication/object'))
+            except:
+                return
             try:
                 swift_repl_duration.labels(config['cloud'], h, 'object').set(r.json()['object_replication_time'])
             except TypeError:
                 print(traceback.format_exc())
 
             for ring in ['account', 'container']:
-                r = requests.get(self.baseurl.format(h, 'replication/' + ring))
+                try:
+                    r = requests.get(self.baseurl.format(h, 'replication/' + ring))
+                except:
+                    return
                 try:
                     swift_repl_duration.labels(config['cloud'], h, ring).set(r.json()['replication_time'])
                 except TypeError:
@@ -371,6 +410,7 @@ class Swift():
                         print(traceback.format_exc())
 
     def get_stats(self):
+        self.gen_up_stats()
         self.gen_disk_usage_stats()
         self.gen_quarantine_stats()
         self.gen_replication_stats()
