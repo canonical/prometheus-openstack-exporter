@@ -1,11 +1,11 @@
 name: prometheus-openstack-exporter
-version: 0.0.2
+version: 0.0.3
 summary: Exposes high level OpenStack metrics to Prometheus.
 description: |
   Exposes high level OpenStack metrics to Prometheus
 
 confinement: strict
-grade: devel
+grade: stable
 apps:
   prometheus-openstack-exporter:
     command: 'bin/prometheus-openstack-exporter.wrapper'
