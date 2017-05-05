@@ -319,12 +319,26 @@ class Swift():
         self.baseurl = 'http://{}:6000/recon/{}'
         self.swift_hosts = config.get('swift_hosts', [])
 
+    def gen_up_stats(self):
+        labels = ['cloud', 'hostname']
+        swift_up = Gauge('swift_host_up', 'Swift host reachability',
+                         labels, registry=self.registry)
+        for h in self.swift_hosts:
+            try:
+                requests.get(self.baseurl.format(h, 'diskusage'))
+                swift_up.labels(config['cloud'], h).set(1)
+            except requests.exceptions.RequestException:
+                swift_up.labels(config['cloud'], h).set(0)
+
     def gen_disk_usage_stats(self):
         labels = ['cloud', 'hostname', 'device', 'type']
         swift_disk = Gauge('swift_disk_usage_bytes', 'Swift disk usage in bytes',
                            labels, registry=self.registry)
         for h in self.swift_hosts:
-            r = requests.get(self.baseurl.format(h, 'diskusage'))
+            try:
+                r = requests.get(self.baseurl.format(h, 'diskusage'))
+            except requests.exceptions.RequestException:
+                continue
             for disk in r.json():
                 if not all([disk.get(i, False) for i in ['size', 'used', 'device']]):
                     continue
@@ -336,7 +350,10 @@ class Swift():
         swift_quarantine = Gauge('swift_quarantined_objects', 'Number of quarantined objects',
                                  labels, registry=self.registry)
         for h in self.swift_hosts:
-            r = requests.get(self.baseurl.format(h, 'quarantined'))
+            try:
+                r = requests.get(self.baseurl.format(h, 'quarantined'))
+            except requests.exceptions.RequestException:
+                continue
             for ring in ['accounts', 'objects', 'containers']:
                 swift_quarantine.labels(config['cloud'], h, ring).set(r.json().get(ring))
 
@@ -351,14 +368,20 @@ class Swift():
                        'failure', 'hashmatch', 'no_change', 'remote_merge',
                        'remove', 'rsync', 'success', 'ts_repl']
             # Object replication is special
-            r = requests.get(self.baseurl.format(h, 'replication/object'))
+            try:
+                r = requests.get(self.baseurl.format(h, 'replication/object'))
+            except requests.exceptions.RequestException:
+                continue
             try:
                 swift_repl_duration.labels(config['cloud'], h, 'object').set(r.json()['object_replication_time'])
             except TypeError:
                 print(traceback.format_exc())
 
             for ring in ['account', 'container']:
-                r = requests.get(self.baseurl.format(h, 'replication/' + ring))
+                try:
+                    r = requests.get(self.baseurl.format(h, 'replication/' + ring))
+                except requests.exceptions.RequestException:
+                    continue
                 try:
                     swift_repl_duration.labels(config['cloud'], h, ring).set(r.json()['replication_time'])
                 except TypeError:
@@ -371,6 +394,7 @@ class Swift():
                         print(traceback.format_exc())
 
     def get_stats(self):
+        self.gen_up_stats()
         self.gen_disk_usage_stats()
         self.gen_quarantine_stats()
         self.gen_replication_stats()
