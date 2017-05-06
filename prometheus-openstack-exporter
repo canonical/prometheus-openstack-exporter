@@ -32,7 +32,6 @@ import pickle
 import requests
 from time import sleep, time
 from neutronclient.v2_0 import client as neutron_client
-from keystoneclient.v2_0 import client as keystone_client
 # from novaclient.v1_1 import client as nova_client
 # http://docs.openstack.org/developer/python-novaclient/api.html
 from novaclient import client as nova_client
@@ -41,6 +40,62 @@ from BaseHTTPServer import HTTPServer
 from SocketServer import ForkingMixIn
 from prometheus_client import CollectorRegistry, generate_latest, Gauge, CONTENT_TYPE_LATEST
 from netaddr import iter_iprange
+
+
+def get_creds_dict(*names):
+    return {name: env['OS_%s' % name.upper()]
+            for name in names if 'OS_%s' % name.upper() in env}
+
+
+def get_creds_list(*names):
+    return [env['OS_%s' % name.upper()]
+            for name in names if 'OS_%s' % name.upper() in env]
+
+
+def get_clients():
+    ks_version = int(env.get('OS_IDENTITY_API_VERSION', 2))
+    if ks_version == 2:
+        from keystoneclient.v2_0 import client as keystone_client
+        # Legacy v2 env vars:
+        # OS_USERNAME OS_PASSWORD OS_TENANT_NAME OS_AUTH_URL OS_REGION_NAME
+        ks_creds = get_creds_dict("username", "password", "tenant_name",
+                                  "auth_url", "region_name", "cacert")
+        nova_creds = [2] + get_creds_list("username", "password", "tenant_name",
+                                          "auth_url")
+        nova_creds_kw = get_creds_dict("cacert")
+        keystone = keystone_client.Client(**ks_creds)
+        nova = nova_client.Client(*nova_creds, **nova_creds_kw)
+        neutron = neutron_client.Client(**ks_creds)
+
+    elif ks_version == 3:
+        from keystoneauth1.identity import v3
+        from keystoneauth1 import session
+        from keystoneclient.v3 import client
+        # A little helper for the poor human trying to figure out which env vars
+        # are needed, it worked for me (jjo) having:
+        #  OS_USERNAME OS_PASSWORD OS_USER_DOMAIN_NAME OS_AUTH_URL
+        #  OS_PROJECT_DOMAIN_NAME OS_PROJECT_DOMAIN_ID OS_PROJECT_ID OS_DOMAIN_NAME
+        # Keystone needs domain creds for e.g. project list
+        ks_creds_domain = get_creds_dict(
+            "username", "password", "user_domain_name", "auth_url", "cacert",
+            "domain_name")
+        # Need non-domain creds to get full catalog
+        ks_creds_admin = get_creds_dict(
+            "username", "password", "user_domain_name", "auth_url", "cacert",
+            "project_domain_name", "project_name", "project_domain_id", "project_id")
+        auth_domain = v3.Password(**ks_creds_domain)
+        auth_admin = v3.Password(**ks_creds_admin)
+        sess_domain = session.Session(auth=auth_domain)
+        sess_admin = session.Session(auth=auth_admin)
+
+        keystone = client.Client(session=sess_domain)
+        nova = nova_client.Client(2, session=sess_admin)
+        neutron = neutron_client.Client(session=sess_admin)
+
+    else:
+        raise(ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
+
+    return (keystone, nova, neutron)
 
 
 class DataGatherer(Thread):
@@ -53,34 +108,15 @@ class DataGatherer(Thread):
 
     def run(self):
         prodstack = {}
-        creds = {
-            "username": env['OS_USERNAME'],
-            "password": env['OS_PASSWORD'],
-            "tenant_name": env['OS_TENANT_NAME'],
-            "auth_url": env['OS_AUTH_URL'],
-            "region_name": env['OS_REGION_NAME']
-        }
-        creds_nova = [
-            2,
-            env['OS_USERNAME'],
-            env['OS_PASSWORD'],
-            env['OS_TENANT_NAME'],
-            env['OS_AUTH_URL'],
-        ]
-        creds_nova_kw = {}
-        ca_cert = env.get("OS_CACERT", None)
-        if ca_cert:
-            creds["cacert"] = ca_cert
-            creds_nova_kw["cacert"] = ca_cert
-
         while True:
             start_time = time()
             try:
-                keystone = keystone_client.Client(**creds)
-                nova = nova_client.Client(*creds_nova, **creds_nova_kw)
-                neutron = neutron_client.Client(**creds)
+                keystone, nova, neutron = get_clients()
 
-                prodstack['tenants'] = [x._info for x in keystone.tenants.list()]
+                try:
+                    prodstack['tenants'] = [x._info for x in keystone.tenants.list()]
+                except AttributeError:
+                    prodstack['tenants'] = [x._info for x in keystone.projects.list()]
                 prodstack['hypervisors'] = [x._info for x in nova.hypervisors.list()]
                 prodstack['services'] = [x._info for x in nova.services.list()]
                 prodstack['networks'] = neutron.list_networks()['networks']
