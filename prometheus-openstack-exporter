@@ -76,9 +76,11 @@ def get_clients():
         #  OS_USERNAME OS_PASSWORD OS_USER_DOMAIN_NAME OS_AUTH_URL
         #  OS_PROJECT_DOMAIN_NAME OS_PROJECT_DOMAIN_ID OS_PROJECT_ID OS_DOMAIN_NAME
         # Keystone needs domain creds for e.g. project list
+
+        # project and project_domain are needed for listing projects
         ks_creds_domain = get_creds_dict(
             "username", "password", "user_domain_name", "auth_url", "cacert",
-            "domain_name")
+            "project_domain_name", "project_name", "project_domain_id", "project_id")
         # Need non-domain creds to get full catalog
         ks_creds_admin = get_creds_dict(
             "username", "password", "user_domain_name", "auth_url", "cacert",
