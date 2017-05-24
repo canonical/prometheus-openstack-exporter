@@ -34,6 +34,7 @@ from time import sleep, time
 from neutronclient.v2_0 import client as neutron_client
 # from novaclient.v1_1 import client as nova_client
 # http://docs.openstack.org/developer/python-novaclient/api.html
+from cinderclient.v2 import client as cinder_client
 from novaclient import client as nova_client
 from BaseHTTPServer import BaseHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
@@ -93,11 +94,12 @@ def get_clients():
         keystone = client.Client(session=sess_domain)
         nova = nova_client.Client(2, session=sess_admin)
         neutron = neutron_client.Client(session=sess_admin)
+        cinder = cinder_client.Client(session=sess_admin)
 
     else:
         raise(ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
 
-    return (keystone, nova, neutron)
+    return (keystone, nova, neutron, cinder)
 
 
 class DataGatherer(Thread):
@@ -113,7 +115,7 @@ class DataGatherer(Thread):
         while True:
             start_time = time()
             try:
-                keystone, nova, neutron = get_clients()
+                keystone, nova, neutron, cinder = get_clients()
 
                 try:
                     prodstack['tenants'] = [x._info for x in keystone.tenants.list()]
@@ -140,6 +142,11 @@ class DataGatherer(Thread):
                         prodstack['instances'].extend(new_instances)
                     else:
                         break
+
+                prodstack['volume_quotas'] = {}
+                for t in prodstack['tenants']:
+                    tid = t['id']
+                    prodstack['volume_quotas'][tid] = cinder.quotas.get(tid, usage=True)._info
             except:
                 # Ignore failures, we will try again after refresh_interval.
                 # Most of them are termporary ie. connectivity problmes
@@ -250,6 +257,35 @@ class Neutron():
         for k, v in ips.items():
             metrics.labels(*k).set(v)
         self.gen_subnet_size()
+        return generate_latest(self.registry)
+
+
+class Cinder():
+    def __init__(self):
+        self.registry = CollectorRegistry()
+        self.prodstack = {}
+        with open(config['cache_file'], 'rb') as f:
+            self.prodstack = pickle.load(f)[0]
+        self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
+
+    def gen_volume_quota_stats(self):
+        gbs = Gauge('cinder_quota_volume_disk_gigabytes',
+                    'Cinder volume metric (GB)',
+                    ['cloud', 'tenant', 'type'], registry=self.registry)
+        vol = Gauge('cinder_quota_volume_disks',
+                    'Cinder volume metric (number of volumes)',
+                    ['cloud', 'tenant', 'type'], registry=self.registry)
+        for t, q in self.prodstack['volume_quotas'].items():
+            if t in self.tenant_map:
+                tenant = self.tenant_map[t]
+            else:
+                tenant = 'orphaned'
+            for tt in ['limit', 'in_use', 'reserved']:
+                gbs.labels(config['cloud'], tenant, tt).inc(q['gigabytes'][tt])
+                vol.labels(config['cloud'], tenant, tt).inc(q['volumes'][tt])
+
+    def get_stats(self):
+        self.gen_volume_quota_stats()
         return generate_latest(self.registry)
 
 
@@ -480,9 +516,11 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
             try:
                 neutron = Neutron()
                 nova = Nova()
+                cinder = Cinder()
                 swift = Swift()
                 output = neutron.get_stats() + \
                     nova.get_stats() + \
+                    cinder.get_stats() + \
                     swift.get_stats() + \
                     data_gatherer.get_stats()
                 self.send_response(200)
