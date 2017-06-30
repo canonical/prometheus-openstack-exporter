@@ -144,9 +144,11 @@ class DataGatherer(Thread):
                         break
 
                 prodstack['volume_quotas'] = {}
+                prodstack['nova_quotas'] = {}
                 for t in prodstack['tenants']:
                     tid = t['id']
                     prodstack['volume_quotas'][tid] = cinder.quotas.get(tid, usage=True)._info
+                    prodstack['nova_quotas'][tid] = nova.quotas.get(tid, detail=True)._info
             except:
                 # Ignore failures, we will try again after refresh_interval.
                 # Most of them are termporary ie. connectivity problmes
@@ -407,10 +409,35 @@ class Nova():
         l = [config['cloud'], 'disk']
         openstack_overcommit.labels(*l).set(config['openstack_allocation_ratio_disk'])
 
+    def gen_quota_stats(self):
+        cores = Gauge('nova_quota_cores',
+                      'Nova cores metric',
+                      ['cloud', 'tenant', 'type'], registry=self.registry)
+        fips = Gauge('nova_quota_floating_ips',
+                     'Nova floating IP addresses (number)',
+                     ['cloud', 'tenant', 'type'], registry=self.registry)
+        inst = Gauge('nova_quota_instances',
+                     'Nova instances (number)',
+                     ['cloud', 'tenant', 'type'], registry=self.registry)
+        ram = Gauge('nova_quota_ram_megabytes',
+                    'Nova RAM (MB)',
+                    ['cloud', 'tenant', 'type'], registry=self.registry)
+        for t, q in self.prodstack['nova_quotas'].items():
+            if t in self.tenant_map:
+                tenant = self.tenant_map[t]
+            else:
+                tenant = 'orphaned'
+            for tt in ['limit', 'in_use', 'reserved']:
+                cores.labels(config['cloud'], tenant, tt).inc(q['cores'][tt])
+                fips.labels(config['cloud'], tenant, tt).inc(q['floating_ips'][tt])
+                inst.labels(config['cloud'], tenant, tt).inc(q['instances'][tt])
+                ram.labels(config['cloud'], tenant, tt).inc(q['ram'][tt])
+
     def get_stats(self):
         self.gen_hypervisor_stats()
         self.gen_instance_stats()
         self.gen_overcommit_stats()
+        self.gen_quota_stats()
         return generate_latest(self.registry)
 
 
