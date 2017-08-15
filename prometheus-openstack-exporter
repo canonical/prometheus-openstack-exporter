@@ -40,7 +40,7 @@ from BaseHTTPServer import BaseHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
 from SocketServer import ForkingMixIn
 from prometheus_client import CollectorRegistry, generate_latest, Gauge, CONTENT_TYPE_LATEST
-from netaddr import iter_iprange
+from netaddr import IPRange 
 
 
 class DataGatherer(Thread):
@@ -187,7 +187,7 @@ class Neutron():
             size = 0
             for subnet in n['subnets']:
                 for pool in self.subnet_map[subnet]['pool']:
-                    size += len(list(iter_iprange(pool['start'], pool['end'])))
+                    size += IPRange(pool['start'], pool['end']).size 
             l = [config['cloud'], self.network_map[n['id']]]
             net_size.labels(*l).set(size)
 
