@@ -207,7 +207,10 @@ class Neutron():
         ips = {}
         for r in self.routers:
             if self._get_router_ip(r['id']):
-                tenant = self.tenant_map[r['tenant_id']]
+                try:
+                    tenant = self.tenant_map[r['tenant_id']]
+                except KeyError:
+                    tenant = 'Unknown tenant ({})'.format(r['tenant_id'])
                 subnet = self.network_map[r['external_gateway_info']['network_id']]
                 key = (config['cloud'], subnet, tenant, 'routerip', r['status'])
                 if key in ips:
