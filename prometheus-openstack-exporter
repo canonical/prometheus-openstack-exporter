@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 OpenStack exporter for the prometheus monitoring system
@@ -225,6 +225,14 @@ class Neutron():
             size = 0
             for subnet in n['subnets']:
                 for pool in self.subnet_map[subnet]['pool']:
+                    if ':' in pool['start']:
+                        # Skip IPv6 address pools; they are big enough to
+                        # drown the IPv4 numbers we might care about.
+                        # Alternatively, we could add IPv4/IPv6 metric labels
+                        # and do something like this:
+                        # int(IPAddress(pool['end'])) -
+                        #     int(IPAddress(pool['start']))
+                        continue
                     size += len(list(iter_iprange(pool['start'], pool['end'])))
             l = [config['cloud'], self.network_map[n['id']]]
             net_size.labels(*l).set(size)
