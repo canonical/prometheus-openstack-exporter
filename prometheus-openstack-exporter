@@ -63,10 +63,13 @@ def get_clients():
                                   "auth_url", "region_name", "cacert")
         nova_creds = [2] + get_creds_list("username", "password", "tenant_name",
                                           "auth_url")
+        cinder_creds = get_creds_list("username", "password", "tenant_name",
+                                      "auth_url")
         nova_creds_kw = get_creds_dict("cacert")
         keystone = keystone_client.Client(**ks_creds)
         nova = nova_client.Client(*nova_creds, **nova_creds_kw)
         neutron = neutron_client.Client(**ks_creds)
+        cinder = cinder_client.Client(*cinder_creds, **nova_creds_kw)
 
     elif ks_version == 3:
         from keystoneauth1.identity import v3
@@ -80,16 +83,17 @@ def get_clients():
 
         # project and project_domain are needed for listing projects
         ks_creds_domain = get_creds_dict(
-            "username", "password", "user_domain_name", "auth_url", "cacert",
+            "username", "password", "user_domain_name", "auth_url",
             "project_domain_name", "project_name", "project_domain_id", "project_id")
         # Need non-domain creds to get full catalog
         ks_creds_admin = get_creds_dict(
-            "username", "password", "user_domain_name", "auth_url", "cacert",
+            "username", "password", "user_domain_name", "auth_url",
             "project_domain_name", "project_name", "project_domain_id", "project_id")
+        cacert = get_creds_dict("cacert")["cacert"]
         auth_domain = v3.Password(**ks_creds_domain)
         auth_admin = v3.Password(**ks_creds_admin)
-        sess_domain = session.Session(auth=auth_domain)
-        sess_admin = session.Session(auth=auth_admin)
+        sess_domain = session.Session(auth=auth_domain, verify=cacert)
+        sess_admin = session.Session(auth=auth_admin, verify=cacert)
 
         keystone = client.Client(session=sess_domain)
         nova = nova_client.Client(2, session=sess_admin)
@@ -124,7 +128,7 @@ class DataGatherer(Thread):
                 prodstack['hypervisors'] = [x._info for x in nova.hypervisors.list()]
                 prodstack['services'] = [x._info for x in nova.services.list()]
                 prodstack['networks'] = neutron.list_networks()['networks']
-                prodstack['flavors'] = [x._info for x in nova.flavors.list()]
+                prodstack['flavors'] = [x._info for x in nova.flavors.list(is_public=None)]
                 prodstack['aggregates'] = [x.to_dict() for x in nova.aggregates.list()]
                 prodstack['subnets'] = neutron.list_subnets()['subnets']
                 prodstack['routers'] = neutron.list_routers()['routers']
@@ -342,17 +346,21 @@ class Nova():
         schedulable_instances_capacity = Gauge('hypervisor_schedulable_instances_capacity',
                                                'Number of schedulable instances we have capacity for',
                                                labels, registry=self.registry)
+        def squashnone(val, default=0):
+            if val is None:
+                return default
+            return val
 
         for h in self.hypervisors:
             host = h['service']['host']
             l = [config['cloud'], host, self.aggregate_map.get(host, 'unknown'), self.services_map[host]]
-            vms.labels(*l).set(h['running_vms'])
-            vcpus_total.labels(*l).set(h['vcpus'])
-            vcpus_used.labels(*l).set(h['vcpus_used'])
-            mem_total.labels(*l).set(h['memory_mb'])
-            mem_used.labels(*l).set(h['memory_mb_used'])
-            disk_total.labels(*l).set(h['local_gb'])
-            disk_used.labels(*l).set(h['local_gb_used'])
+            vms.labels(*l).set(squashnone(h['running_vms']))
+            vcpus_total.labels(*l).set(squashnone(h['vcpus']))
+            vcpus_used.labels(*l).set(squashnone(h['vcpus_used']))
+            mem_total.labels(*l).set(squashnone(h['memory_mb']))
+            mem_used.labels(*l).set(squashnone(h['memory_mb_used']))
+            disk_total.labels(*l).set(squashnone(h['local_gb']))
+            disk_used.labels(*l).set(squashnone(h['local_gb_used']))
             if config.get("schedulable_instance_size", False):
                 schedulable_instances.labels(*l).set(self._get_schedulable_instances(h))
                 schedulable_instances_capacity.labels(*l).set(self._get_schedulable_instances_capacity(h))
