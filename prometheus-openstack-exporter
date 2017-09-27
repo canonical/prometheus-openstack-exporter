@@ -439,7 +439,7 @@ class Nova():
         inst = Gauge('nova_quota_instances',
                      'Nova instances (number)',
                      ['cloud', 'tenant', 'type'], registry=self.registry)
-        ram = Gauge('nova_quota_ram_megabytes',
+        ram = Gauge('nova_quota_ram_mbs',
                     'Nova RAM (MB)',
                     ['cloud', 'tenant', 'type'], registry=self.registry)
         for t, q in self.prodstack['nova_quotas'].items():
