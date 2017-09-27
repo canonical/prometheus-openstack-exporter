@@ -44,14 +44,16 @@ from netaddr import iter_iprange
 
 
 def get_creds_dict(*names):
-    return {name: env['OS_%s' % name.upper()]
-            for name in names if 'OS_%s' % name.upper() in env}
-
+    """Get dictionary with cred envvars, error if not set"""
+    return {name: env['OS_%s' % name.upper()] for name in names}
 
 def get_creds_list(*names):
-    return [env['OS_%s' % name.upper()]
-            for name in names if 'OS_%s' % name.upper() in env]
+    """Get list with cred envvars, error if not set"""
+    return [env['OS_%s' % name.upper()] for name in names]
 
+def maybe_get_cacert():
+    """Get cacert, None if unset"""
+    return env.get("OS_CACERT")
 
 def get_clients():
     ks_version = int(env.get('OS_IDENTITY_API_VERSION', 2))
@@ -60,16 +62,18 @@ def get_clients():
         # Legacy v2 env vars:
         # OS_USERNAME OS_PASSWORD OS_TENANT_NAME OS_AUTH_URL OS_REGION_NAME
         ks_creds = get_creds_dict("username", "password", "tenant_name",
-                                  "auth_url", "region_name", "cacert")
+                                  "auth_url", "region_name")
+        cacert = maybe_get_cacert()
+        if cacert:
+            ks_creds["cacert"] = cacert
         nova_creds = [2] + get_creds_list("username", "password", "tenant_name",
                                           "auth_url")
         cinder_creds = get_creds_list("username", "password", "tenant_name",
                                       "auth_url")
-        nova_creds_kw = get_creds_dict("cacert")
         keystone = keystone_client.Client(**ks_creds)
-        nova = nova_client.Client(*nova_creds, **nova_creds_kw)
+        nova = nova_client.Client(*nova_creds, cacert=cacert)
         neutron = neutron_client.Client(**ks_creds)
-        cinder = cinder_client.Client(*cinder_creds, **nova_creds_kw)
+        cinder = cinder_client.Client(*cinder_creds, cacert=cacert)
 
     elif ks_version == 3:
         from keystoneauth1.identity import v3
@@ -92,9 +96,11 @@ def get_clients():
         auth_domain = v3.Password(**ks_creds_domain)
         auth_admin = v3.Password(**ks_creds_admin)
         # Need to pass in cacert separately
-        cacert = get_creds_dict("cacert")["cacert"]
-        sess_domain = session.Session(auth=auth_domain, verify=cacert)
-        sess_admin = session.Session(auth=auth_admin, verify=cacert)
+        verify = maybe_get_cacert()
+        if verify is None:
+            verify = True
+        sess_domain = session.Session(auth=auth_domain, verify=verify)
+        sess_admin = session.Session(auth=auth_admin, verify=verify)
 
         keystone = client.Client(session=sess_domain)
         nova = nova_client.Client(2, session=sess_admin)
