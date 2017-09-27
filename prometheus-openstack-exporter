@@ -89,9 +89,10 @@ def get_clients():
         ks_creds_admin = get_creds_dict(
             "username", "password", "user_domain_name", "auth_url",
             "project_domain_name", "project_name", "project_domain_id", "project_id")
-        cacert = get_creds_dict("cacert")["cacert"]
         auth_domain = v3.Password(**ks_creds_domain)
         auth_admin = v3.Password(**ks_creds_admin)
+        # Need to pass in cacert separately
+        cacert = get_creds_dict("cacert")["cacert"]
         sess_domain = session.Session(auth=auth_domain, verify=cacert)
         sess_admin = session.Session(auth=auth_admin, verify=cacert)
 
@@ -107,6 +108,10 @@ def get_clients():
 
 
 class DataGatherer(Thread):
+    """Periodically retrieve data from openstack in a separate thread,
+    save as pickle to cache_file
+    """
+
     def __init__(self):
         Thread.__init__(self)
         self.daemon = True
@@ -354,6 +359,7 @@ class Nova():
         for h in self.hypervisors:
             host = h['service']['host']
             l = [config['cloud'], host, self.aggregate_map.get(host, 'unknown'), self.services_map[host]]
+            # Disabled hypervisors return None below, convert to 0
             vms.labels(*l).set(squashnone(h['running_vms']))
             vcpus_total.labels(*l).set(squashnone(h['vcpus']))
             vcpus_used.labels(*l).set(squashnone(h['vcpus_used']))
