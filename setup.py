@@ -16,8 +16,9 @@ setup(
     scripts=["prometheus-openstack-exporter"],
     install_requires=["prometheus_client",
                       "python-keystoneclient<=3.10.0",
-                      "python-novaclient<=4.1.0",
+                      "python-novaclient==6.0.0",
                       "python-neutronclient<=6.1.0",
+                      "python-cinderclient",
                       "netaddr"],
     long_description=read('README.md'),
     classifiers=[
