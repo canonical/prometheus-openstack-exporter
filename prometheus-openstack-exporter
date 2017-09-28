@@ -44,8 +44,9 @@ from netaddr import iter_iprange
 
 
 def get_creds_dict(*names):
-    """Get dictionary with cred envvars, error if not set"""
-    return {name: env['OS_%s' % name.upper()] for name in names}
+    """Get dictionary with cred envvars"""
+    return {name: env['OS_%s' % name.upper()]
+        for name in names if 'OS_%s' % name.upper() in env}
 
 def get_creds_list(*names):
     """Get list with cred envvars, error if not set"""
