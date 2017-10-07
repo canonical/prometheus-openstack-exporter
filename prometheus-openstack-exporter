@@ -40,7 +40,7 @@ from BaseHTTPServer import BaseHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
 from SocketServer import ForkingMixIn
 from prometheus_client import CollectorRegistry, generate_latest, Gauge, CONTENT_TYPE_LATEST
-from netaddr import IPRange 
+from netaddr import IPRange
 
 
 def get_creds_dict(*names):
@@ -256,10 +256,6 @@ class Neutron():
                     if ':' in pool['start']:
                         # Skip IPv6 address pools; they are big enough to
                         # drown the IPv4 numbers we might care about.
-                        # Alternatively, we could add IPv4/IPv6 metric labels
-                        # and do something like this:
-                        # int(IPAddress(pool['end'])) -
-                        #     int(IPAddress(pool['start']))
                         continue
                     size += IPRange(pool['start'], pool['end']).size
             l = [config['cloud'], self.network_map[n['id']]]
