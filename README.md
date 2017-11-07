@@ -5,67 +5,35 @@ Exposes high level [OpenStack](http://www.openstack.org/) metrics to [Prometheus
 
 # Deployment
 
+
 ## Requirements
 
-```
-sudo apt-get install python-neutronclient python-novaclient python-keystoneclient python-netaddr
-```
+yum install -y gcc
+yum install -y python
+yum install -y python-devel
+yum install -y python-pip
 
-Install prometheus_client. On Ubuntu 16.04:
-```
-apt-get install python-prometheus-client
-```
-
-On Ubuntu 14.04:
-```
+pip install python-openstackclient
+pip install python-neutronclient
 pip install prometheus_client
-```
 
-## Installation
 
-```
-# Copy example config in place, edit to your needs
-sudo cp prometheus-openstack-exporter.yaml /etc/prometheus/
 
-## Upstart
-# Install job
-sudo cp prometheus-openstack-exporter.conf /etc/init
+## Build docker container
 
-# Configure novarc location:
-sudo sh -c 'echo "NOVARC=/path/to/admin-novarc">/etc/default/prometheus-openstack-exporter'
+docker build -t prometheus-openstack-exporter .
 
-## Systemd
-# Install job
-sudo cp prometheus-openstack-exporter.service /etc/systemd/system/
+# Edit configuration
 
-# create novarc
-sudo cat <<EOF > /etc/prometheus-openstack-exporter/admin.novarc
-export OS_USERNAME=Admin
-export OS_TENANT_NAME=admin
-export OS_PASSWORD=XXXX
-export OS_REGION_NAME=cloudname
-export OS_AUTH_URL=http://XX.XX.XX.XX:35357/v2.0
-EOF
-
-# create default config location
-sudo sh -c 'echo "CONFIG_FILE=/etc/prometheus-openstack-exporter/prometheus-openstack-exporter.yaml">/etc/default/prometheus-openstack-exporter'
-
+Example congfiguration in config/default.admin.example
 
 # Start
-sudo start prometheus-openstack-exporter
-```
 
-Or to run interactively:
+docker run -d --env-file ./config/default.admin.example --restart=always -p 9183:9183 prometheus-openstack-exporter
 
-```
-. /path/to/admin-novarc
-./prometheus-openstack-exporter prometheus-openstack-exporter.yaml
 
-```
 
-# Configuration
 
-Configuration options are documented in prometheus-openstack-exporter.yaml shipped with this project
 
 # FAQ
 

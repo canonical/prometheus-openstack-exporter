@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 EnvironmentFile=/etc/default/prometheus-openstack-exporter
-#EnvironmentFile=/etc/prometheus-openstack-exporter/admin.novarc
-ExecStart=/bin/sh -c '. /etc/prometheus-openstack-exporter/admin.novarc; exec /opt/prometheus-openstack-exporter/prometheus-openstack-exporter $CONFIG_FILE'
+#EnvironmentFile=/etc/admin.novarc
+ExecStart=/bin/sh -c '. /etc/admin.novarc; exec /home/andrius/Documents/openstack-exporter/git/prometheus-openstack-exporter $CONFIG_FILE'
 KillMode=process
 
 [Install]

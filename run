@@ -1,0 +1,22 @@
+#!/bin/bash 
+
+#source ./config/default.admin
+
+cp ./config/default.yaml ./config/run.yaml
+sed -i 's/<YAML_cloud_name>/'$YAML_cloud_name'/' ./config/run.yaml
+sed -i 's/<YAML_region_name>/'$YAML_region_name'/' ./config/run.yaml
+sed -i 's/<YAML_listen_port>/'$YAML_listen_port'/' ./config/run.yaml
+sed -i 's/<YAML_cache_refresh_interval>/'$YAML_cache_refresh_interval'/' ./config/run.yaml
+sed -i 's/<YAML_cpu_allocation_ratio>/'$YAML_cpu_allocation_ratio'/' ./config/run.yaml
+sed -i 's/<YAML_ram_allocation_ratio>/'$YAML_ram_allocation_ratio'/' ./config/run.yaml
+sed -i 's/<YAML_disk_allocation_ratio>/'$YAML_disk_allocation_ratio'/' ./config/run.yaml
+sed -i 's/<YAML_ram_mbs>/'$YAML_ram_mbs'/' ./config/run.yaml
+sed -i 's/<YAML_vcpu>/'$YAML_vcpu'/' ./config/run.yaml
+sed -i 's/<YAML_disk_gbs>/'$YAML_disk_gbs'/' ./config/run.yaml
+
+#cat ./config/run.yaml
+#env
+id
+
+python prometheus-openstack-exporter ./config/run.yaml
+
