@@ -8,7 +8,7 @@ Exposes high level [OpenStack](http://www.openstack.org/) metrics to [Prometheus
 ## Requirements
 
 ```
-sudo apt-get install python-neutronclient python-novaclient python-keystoneclient python-netaddr
+sudo apt-get install python-neutronclient python-novaclient python-keystoneclient python-netaddr python-cinderclient
 ```
 
 Install prometheus_client. On Ubuntu 16.04:
