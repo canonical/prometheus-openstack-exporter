@@ -7,7 +7,7 @@ def read(fname):
 
 setup(
     name="prometheus_openstack_exporter",
-    version="0.0.2",
+    version="0.0.3",
     author="Jacek Nykis",
     description="Exposes high level OpenStack metrics to Prometheus.",
     license="GPLv3",
@@ -15,9 +15,10 @@ setup(
     url="https://github.com/CanonicalLtd/prometheus-openstack-exporter",
     scripts=["prometheus-openstack-exporter"],
     install_requires=["prometheus_client",
-                      "python-novaclient",
-                      "python-neutronclient",
-                      "python-keystoneclient",
+                      "python-keystoneclient<=3.10.0",
+                      "python-novaclient==6.0.0",
+                      "python-neutronclient<=6.1.0",
+                      "python-cinderclient",
                       "netaddr"],
     long_description=read('README.md'),
     classifiers=[
