@@ -1,0 +1,21 @@
+OS_IDENTITY_API_VERSION=3
+OS_AUTH_URL=http://url.lan:35357/v3
+OS_USER_DOMAIN_NAME=Default
+OS_PROJECT_DOMAIN_NAME=Default
+OS_PROJECT_NAME=admin
+OS_USERNAME=User
+OS_PASSWORD=Password
+OS_REGION_NAME='region'
+
+#yaml config
+YAML_cloud_name=precloud
+YAML_region_name=region
+YAML_listen_port=9183
+YAML_cache_refresh_interval=300
+YAML_cpu_allocation_ratio=6.0
+YAML_ram_allocation_ratio=1.0
+YAML_disk_allocation_ratio=1.0
+YAML_ram_mbs=8192
+YAML_vcpu=4
+YAML_disk_gbs=50
+
