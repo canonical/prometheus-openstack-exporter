@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """
 OpenStack exporter for the prometheus monitoring system
 
@@ -43,19 +42,27 @@ from SocketServer import ForkingMixIn
 from prometheus_client import CollectorRegistry, generate_latest, Gauge, CONTENT_TYPE_LATEST
 from netaddr import IPRange
 
+import logging
+import logging.handlers
+
+log = logging.getLogger('poe-logger')
+
 
 def get_creds_dict(*names):
     """Get dictionary with cred envvars"""
     return {name: env['OS_%s' % name.upper()]
-        for name in names if 'OS_%s' % name.upper() in env}
+            for name in names if 'OS_%s' % name.upper() in env}
+
 
 def get_creds_list(*names):
     """Get list with cred envvars, error if not set"""
     return [env['OS_%s' % name.upper()] for name in names]
 
+
 def maybe_get_cacert():
     """Get cacert, None if unset"""
     return env.get("OS_CACERT")
+
 
 def get_clients():
     ks_version = int(env.get('OS_IDENTITY_API_VERSION', 2))
@@ -111,7 +118,7 @@ def get_clients():
 
     else:
         raise(ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
-
+    log.debug("Client setup done, keystone ver {}".format(ks_version))
     return (keystone, nova, neutron, cinder)
 
 
@@ -128,6 +135,7 @@ class DataGatherer(Thread):
         self.cache_file = config['cache_file']
 
     def run(self):
+        log.debug("Starting data gather thread")
         prodstack = {}
         while True:
             start_time = time()
@@ -137,6 +145,7 @@ class DataGatherer(Thread):
                 try:
                     prodstack['tenants'] = [x._info for x in keystone.tenants.list()]
                 except AttributeError:
+                    log.info("Error getting tenants.list, continue with projects.list")
                     prodstack['tenants'] = [x._info for x in keystone.projects.list()]
                 prodstack['hypervisors'] = [x._info for x in nova.hypervisors.list()]
                 prodstack['services'] = [x._info for x in nova.services.list()]
@@ -170,11 +179,12 @@ class DataGatherer(Thread):
                 # Ignore failures, we will try again after refresh_interval.
                 # Most of them are termporary ie. connectivity problmes
                 # To alert on stale cache use openstack_exporter_cache_age_seconds metric
-                print(traceback.format_exc())
+                log.critical("Error getting stats: {}".format(traceback.format_exc()))
             else:
                 with open(self.cache_file + '.new', "wb+") as f:
                     pickle.dump((prodstack, ), f, pickle.HIGHEST_PROTOCOL)
                 rename(self.cache_file + '.new', self.cache_file)
+                log.debug("Done dumping stats to {}".format(self.cache_file))
             self.duration = time() - start_time
             sleep(self.refresh_interval)
 
@@ -355,6 +365,7 @@ class Nova():
         schedulable_instances_capacity = Gauge('hypervisor_schedulable_instances_capacity',
                                                'Number of schedulable instances we have capacity for',
                                                labels, registry=self.registry)
+
         def squashnone(val, default=0):
             if val is None:
                 return default
@@ -375,7 +386,7 @@ class Nova():
             mem_used.labels(*l).set(squashnone(h['memory_mb_used']))
             disk_total.labels(*l).set(squashnone(h['local_gb']))
             disk_used.labels(*l).set(squashnone(h['local_gb_used']))
-            
+
             if config.get("schedulable_instance_size", False):
                 schedulable_instances.labels(*l).set(self._get_schedulable_instances(h))
                 schedulable_instances_capacity.labels(*l).set(self._get_schedulable_instances_capacity(h))
@@ -609,6 +620,10 @@ if __name__ == '__main__':
                         default='/etc/prometheus/prometheus-openstack-exporter.yaml',
                         type=argparse.FileType('r'))
     args = parser.parse_args()
+    log = logging.getLogger('poe-logger')
+    log.setLevel(logging.DEBUG)
+    handler = logging.handlers.SysLogHandler(address='/dev/log')
+    log.addHandler(handler)
     config = yaml.safe_load(args.config_file.read())
     data_gatherer = DataGatherer()
     data_gatherer.start()
