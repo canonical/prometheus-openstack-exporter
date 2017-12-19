@@ -620,10 +620,12 @@ if __name__ == '__main__':
                         default='/etc/prometheus/prometheus-openstack-exporter.yaml',
                         type=argparse.FileType('r'))
     args = parser.parse_args()
-    log = logging.getLogger('poe-logger')
     log.setLevel(logging.DEBUG)
-    handler = logging.handlers.SysLogHandler(address='/dev/log')
-    log.addHandler(handler)
+    for logsock in ('/dev/log', '/var/run/syslog'):
+        if path.exists(logsock):
+            log.addHandler(logging.handlers.SysLogHandler(address=logsock))
+    else:
+        log.addHandler(logging.StreamHandler())
     config = yaml.safe_load(args.config_file.read())
     data_gatherer = DataGatherer()
     data_gatherer.start()
