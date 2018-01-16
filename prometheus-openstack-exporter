@@ -23,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import argparse
 import yaml
 import json
+import ast
 from os import environ as env
 from os import rename, path
 import traceback
@@ -243,6 +244,8 @@ class Neutron():
         ips = {}
         for r in self.routers:
             if self._get_router_ip(r['id']):
+                if r['tenant_id'].startswith('<Tenant {'):
+                    r['tenant_id'] = ast.literal_eval(r['tenant_id'][8:-1])['id']
                 try:
                     tenant = self.tenant_map[r['tenant_id']]
                 except KeyError:
