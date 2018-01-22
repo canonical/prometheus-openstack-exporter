@@ -21,3 +21,6 @@ schedulable_instance_size:
 swift_hosts:
     - host1.example.com
     - host2.example.com
+
+# Uncomment if the cloud doesn't provide cinder / nova volumes:
+#use_nova_volumes: False

@@ -134,6 +134,7 @@ class DataGatherer(Thread):
         self.duration = 0
         self.refresh_interval = config.get('cache_refresh_interval', 900)
         self.cache_file = config['cache_file']
+        self.use_nova_volumes = config.get('use_nova_volumes', True)
 
     def run(self):
         log.debug("Starting data gather thread")
@@ -174,8 +175,14 @@ class DataGatherer(Thread):
                 prodstack['nova_quotas'] = {}
                 for t in prodstack['tenants']:
                     tid = t['id']
-                    prodstack['volume_quotas'][tid] = cinder.quotas.get(tid, usage=True)._info
-                    prodstack['nova_quotas'][tid] = nova.quotas.get(tid, detail=True)._info
+                    if self.use_nova_volumes:
+                        prodstack['volume_quotas'][tid] = cinder.quotas.get(tid, usage=True)._info
+                    # old OS versions (e.g. Mitaka) will 404 if we request details
+                    try:
+                        prodstack['nova_quotas'][tid] = nova.quotas.get(tid, detail=True)._info
+                    except:
+                        prodstack['nova_quotas'][tid] = nova.quotas.get(tid)._info
+
             except:
                 # Ignore failures, we will try again after refresh_interval.
                 # Most of them are termporary ie. connectivity problmes
@@ -295,6 +302,7 @@ class Cinder():
         with open(config['cache_file'], 'rb') as f:
             self.prodstack = pickle.load(f)[0]
         self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
+        self.use_nova_volumes = config.get('use_nova_volumes', True)
 
     def gen_volume_quota_stats(self):
         gbs = Gauge('cinder_quota_volume_disk_gigabytes',
@@ -303,6 +311,8 @@ class Cinder():
         vol = Gauge('cinder_quota_volume_disks',
                     'Cinder volume metric (number of volumes)',
                     ['cloud', 'tenant', 'type'], registry=self.registry)
+        if not self.use_nova_volumes:
+            return
         for t, q in self.prodstack['volume_quotas'].items():
             if t in self.tenant_map:
                 tenant = self.tenant_map[t]
@@ -464,11 +474,19 @@ class Nova():
                 tenant = self.tenant_map[t]
             else:
                 tenant = 'orphaned'
-            for tt in ['limit', 'in_use', 'reserved']:
-                cores.labels(config['cloud'], tenant, tt).inc(q['cores'][tt])
-                fips.labels(config['cloud'], tenant, tt).inc(q['floating_ips'][tt])
-                inst.labels(config['cloud'], tenant, tt).inc(q['instances'][tt])
-                ram.labels(config['cloud'], tenant, tt).inc(q['ram'][tt])
+
+            # we get detailed quota information only on recent OS versions
+            if isinstance(q['cores'], int):
+                cores.labels(config['cloud'], tenant, 'limit').set(q['cores'])
+                fips.labels(config['cloud'], tenant, 'limit').set(q['floating_ips'])
+                inst.labels(config['cloud'], tenant, 'limit').set(q['instances'])
+                ram.labels(config['cloud'], tenant, 'limit').set(q['ram'])
+            else:
+                for tt in ['limit', 'in_use', 'reserved']:
+                    cores.labels(config['cloud'], tenant, tt).inc(q['cores'][tt])
+                    fips.labels(config['cloud'], tenant, tt).inc(q['floating_ips'][tt])
+                    inst.labels(config['cloud'], tenant, tt).inc(q['instances'][tt])
+                    ram.labels(config['cloud'], tenant, tt).inc(q['ram'][tt])
 
     def get_stats(self):
         self.gen_hypervisor_stats()
