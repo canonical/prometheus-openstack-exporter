@@ -51,8 +51,8 @@ log = logging.getLogger('poe-logger')
 
 def get_creds_dict(*names):
     """Get dictionary with cred envvars"""
-    return {name: env['OS_%s' % name.upper()]
-            for name in names if 'OS_%s' % name.upper() in env}
+    return dict(*[(name, env['OS_%s' % name.upper()])
+                  for name in names if 'OS_%s' % name.upper() in env])
 
 
 def get_creds_list(*names):
@@ -219,9 +219,9 @@ class Neutron():
         with open(config['cache_file'], 'rb') as f:
             self.prodstack = pickle.load(f)[0]
 
-        self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
-        self.network_map = {n['id']: n['name'] for n in self.prodstack['networks']}
-        self.subnet_map = {n['id']: {'name': n['name'], 'pool': n['allocation_pools']} for n in self.prodstack['subnets']}
+        self.tenant_map = dict(*[(t['id'], t['name']) for t in self.prodstack['tenants']])
+        self.network_map = dict(*[(n['id'], n['name']) for n in self.prodstack['networks']])
+        self.subnet_map = dict(*[(n['id'], {'name': n['name'], 'pool': n['allocation_pools']}) for n in self.prodstack['subnets']])
         self.routers = self.prodstack['routers']
         self.ports = self.prodstack['ports']
         self.floating_ips = self.prodstack['floatingips']
@@ -301,7 +301,7 @@ class Cinder():
         self.prodstack = {}
         with open(config['cache_file'], 'rb') as f:
             self.prodstack = pickle.load(f)[0]
-        self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
+        self.tenant_map = dict(*[(t['id'], t['name']) for t in self.prodstack['tenants']])
         self.use_nova_volumes = config.get('use_nova_volumes', True)
 
     def gen_volume_quota_stats(self):
@@ -334,16 +334,16 @@ class Nova():
         with open(config['cache_file'], 'rb') as f:
             self.prodstack = pickle.load(f)[0]
         self.hypervisors = self.prodstack['hypervisors']
-        self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
-        self.flavor_map = {f['id']: {'ram': f['ram'], 'disk': f['disk'], 'vcpus': f['vcpus']}
-                           for f in self.prodstack['flavors']}
+        self.tenant_map = dict(*[(t['id'], t['name']) for t in self.prodstack['tenants']])
+        self.flavor_map = dict(*[(f['id'], {'ram': f['ram'], 'disk': f['disk'], 'vcpus': f['vcpus']})
+                                 for f in self.prodstack['flavors']])
         self.aggregate_map = {}
         self.services_map = {}
         for s in self.prodstack['services']:
             if s['binary'] == 'nova-compute':
                 self.services_map[s['host']] = s['status']
         for agg in self.prodstack['aggregates']:
-            self.aggregate_map.update({i: agg['name'] for i in agg['hosts']})
+            self.aggregate_map.update(dict(*[(i, agg['name']) for i in agg['hosts']]))
 
     def _get_schedulable_instances(self, host):
         free_vcpus = host['vcpus'] * config['openstack_allocation_ratio_vcpu'] - host['vcpus_used']
