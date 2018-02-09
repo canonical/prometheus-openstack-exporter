@@ -149,6 +149,7 @@ class DataGatherer(Thread):
                 except AttributeError:
                     log.info("Error getting tenants.list, continue with projects.list")
                     prodstack['tenants'] = [x._info for x in keystone.projects.list()]
+                    log.debug("Number of projects: %s", len(prodstack['tenants']))
                 prodstack['hypervisors'] = [x._info for x in nova.hypervisors.list()]
                 prodstack['services'] = [x._info for x in nova.services.list()]
                 prodstack['networks'] = neutron.list_networks()['networks']
@@ -385,11 +386,17 @@ class Nova():
             return val
 
         for h in self.hypervisors:
+            log.debug("Hypervisor: %s", h)
             host = h['service']['host']
+            log.debug("host: %s", host)
             cpu_info = h['cpu_info']
-            if type(cpu_info) != dict:
+            log.debug("cpu_info: %s", cpu_info)
+            arch = 'Unknown'
+            if not cpu_info:
+                log.info("Could not get cpu info")
+            elif type(cpu_info) != dict:
                 cpu_info = json.loads(cpu_info)
-            arch = cpu_info['arch']
+                arch = cpu_info['arch']
             l = [config['cloud'], host, self.aggregate_map.get(host, 'unknown'), self.services_map[host], arch]
             # Disabled hypervisors return None below, convert to 0
             vms.labels(*l).set(squashnone(h['running_vms']))
@@ -489,6 +496,7 @@ class Nova():
                     ram.labels(config['cloud'], tenant, tt).inc(q['ram'][tt])
 
     def get_stats(self):
+        log.debug("get_stats")
         self.gen_hypervisor_stats()
         self.gen_instance_stats()
         self.gen_overcommit_stats()
@@ -600,6 +608,7 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
                 nova = Nova()
                 cinder = Cinder()
                 swift = Swift()
+                log.debug("Collecting stats..")
                 output = neutron.get_stats() + \
                     nova.get_stats() + \
                     cinder.get_stats() + \
