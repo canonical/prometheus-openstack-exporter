@@ -659,5 +659,5 @@ if __name__ == '__main__':
     config = yaml.safe_load(args.config_file.read())
     data_gatherer = DataGatherer()
     data_gatherer.start()
-    server = ForkingHTTPServer(('', config.get('listen_port')), handler)
+    server = ForkingHTTPServer((config.get('listen_ip',''), config.get('listen_port')), handler)
     server.serve_forever()
