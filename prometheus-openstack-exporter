@@ -425,18 +425,26 @@ class Nova():
                             'user_id', 'vm_state', 'power_state',
                             'hypervisor_hostname', 'flavor', 'az']
                             , registry=self.registry)
+        try:
         instance_info_launch=Gauge('nova_instance_launch_s',
                             'Information about specific instances',
                             ['cloud','id', 'name', 'tenant_id',
                             'user_id', 'vm_state', 'power_state',
                             'hypervisor_hostname', 'flavor', 'az']
                             , registry=self.registry)
+        except Error:
+            _
+
+        try:
         instance_info_create=Gauge('nova_instance_created_s',
                             'Information about specific instances',
                             ['cloud','id', 'name', 'tenant_id',
                             'user_id', 'vm_state', 'power_state',
                             'hypervisor_hostname', 'flavor', 'az']
                             , registry=self.registry)
+        except Error:
+            _
+        
         res_ram = Gauge('nova_resources_ram_mbs',
                         'Nova RAM usage metric',
                         ['cloud', 'tenant'], registry=self.registry)
