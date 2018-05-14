@@ -477,7 +477,7 @@ class Nova():
                             i['OS-EXT-SRV-ATTR:host'], flavorname,
                             i['OS-EXT-AZ:availability_zone']).set(
                                 dp.parse(i['OS-SRV-USG:launched_at']).strftime('%s'))
-            except Error:
+            except Exception:
                 _
 
             try:
@@ -487,7 +487,7 @@ class Nova():
                             i['OS-EXT-SRV-ATTR:host'], flavorname,
                             i['OS-EXT-AZ:availability_zone']).set(
                                 dp.parse(i['created']).strftime('%s'))
-            except Error:
+            except Exception:
                 _
 
         # If flavors were deleted we can't reliably find out resouerce use
