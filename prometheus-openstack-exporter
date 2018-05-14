@@ -338,7 +338,7 @@ class Nova():
             self.prodstack = pickle.load(f)[0]
         self.hypervisors = self.prodstack['hypervisors']
         self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
-        self.flavor_map = {f['id']: {'ram': f['ram'], 'disk': f['disk'], 'vcpus': f['vcpus']}
+        self.flavor_map = {f['id']: {fk:f[fk] for fk in f.keys() }
                            for f in self.prodstack['flavors']}
         self.aggregate_map = {}
         self.services_map = {}
