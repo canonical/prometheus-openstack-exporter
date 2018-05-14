@@ -647,7 +647,7 @@ if __name__ == '__main__':
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('config_file', nargs='?',
                         help='Configuration file path',
-                        default='/etc/prometheus/prometheus-openstack-exporter.yaml',
+                        default='./prometheus-openstack-exporter.yaml',
                         type=argparse.FileType('r'))
     args = parser.parse_args()
     log.setLevel(logging.DEBUG)
