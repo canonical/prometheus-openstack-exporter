@@ -418,6 +418,12 @@ class Nova():
         instances = Gauge('nova_instances',
                           'Nova instances metrics',
                           ['cloud', 'tenant', 'instance_state'], registry=self.registry)
+        instance_info=Gauge('nova_instance_info',
+                            'Information about specific instances',
+                            ['cloud','id', 'name', 'tenant_id',
+                            'user_id', 'vm_state', 'power_state',
+                            'hypervisor_hostname', 'flavor', 'az']
+                            , registry=self.registry)
         res_ram = Gauge('nova_resources_ram_mbs',
                         'Nova RAM usage metric',
                         ['cloud', 'tenant'], registry=self.registry)
@@ -434,13 +440,23 @@ class Nova():
                 tenant = 'orphaned'
             instances.labels(config['cloud'], tenant, i['status']).inc()
 
-            if i['flavor']['id'] in self.flavor_map:
-                flavor = self.flavor_map[i['flavor']['id']]
+            f_id=i['flavor']['id']
+            flavorname=f_id
+            if f_id in self.flavor_map:
+                flavor = self.flavor_map[f_id]
                 res_ram.labels(config['cloud'], tenant).inc(flavor['ram'])
                 res_vcpus.labels(config['cloud'], tenant).inc(flavor['vcpus'])
                 res_disk.labels(config['cloud'], tenant).inc(flavor['disk'])
+                flavorname=flavor['name']
             else:
                 missing_flavors = True
+
+            instance_info.labels(config['cloud'],
+                    i['id'], i['name'], i['tenant_id'], i['user_id'],
+                    i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
+                    i['OS-EXT-SRV-ATTR:host'], flavorname,
+                    i['OS-EXT-AZ:availability_zone'])
+                    .set(1)
 
         # If flavors were deleted we can't reliably find out resouerce use
         if missing_flavors:
