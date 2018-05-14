@@ -3,3 +3,6 @@ prime
 *.snap
 snap
 stage
+.cache
+.vscode
+*.egg-info
