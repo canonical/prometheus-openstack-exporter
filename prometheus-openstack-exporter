@@ -140,6 +140,7 @@ class DataGatherer(Thread):
         log.debug("Starting data gather thread")
         prodstack = {}
         while True:
+            log.debug('gathering run starts')
             start_time = time()
             try:
                 keystone, nova, neutron, cinder = get_clients()
@@ -195,6 +196,7 @@ class DataGatherer(Thread):
                 rename(self.cache_file + '.new', self.cache_file)
                 log.debug("Done dumping stats to {}".format(self.cache_file))
             self.duration = time() - start_time
+            log.debug('gathering run finished, sleeping now')
             sleep(self.refresh_interval)
 
     def get_stats(self):
