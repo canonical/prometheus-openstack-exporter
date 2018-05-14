@@ -469,23 +469,24 @@ class Nova():
                     i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
                     i['OS-EXT-SRV-ATTR:host'], flavorname,
                     i['OS-EXT-AZ:availability_zone']).set(1)
+
             try:
-            instance_info_launch.labels(config['cloud'],
-                    i['id'], i['name'], i['tenant_id'], i['user_id'],
-                    i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
-                    i['OS-EXT-SRV-ATTR:host'], flavorname,
-                    i['OS-EXT-AZ:availability_zone']).set(
-                        dp.parse(i['OS-SRV-USG:launched_at']).strftime('%s'))
+                    instance_info_launch.labels(config['cloud'],
+                            i['id'], i['name'], i['tenant_id'], i['user_id'],
+                            i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
+                            i['OS-EXT-SRV-ATTR:host'], flavorname,
+                            i['OS-EXT-AZ:availability_zone']).set(
+                                dp.parse(i['OS-SRV-USG:launched_at']).strftime('%s'))
             except Error:
                 _
 
             try:
-            instance_info_create.labels(config['cloud'],
-                    i['id'], i['name'], i['tenant_id'], i['user_id']
-                    , i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
-                    i['OS-EXT-SRV-ATTR:host'], flavorname,
-                    i['OS-EXT-AZ:availability_zone']).set(
-                        dp.parse(i['created']).strftime('%s'))
+                    instance_info_create.labels(config['cloud'],
+                            i['id'], i['name'], i['tenant_id'], i['user_id']
+                            , i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
+                            i['OS-EXT-SRV-ATTR:host'], flavorname,
+                            i['OS-EXT-AZ:availability_zone']).set(
+                                dp.parse(i['created']).strftime('%s'))
             except Error:
                 _
 
