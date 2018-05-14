@@ -468,20 +468,19 @@ class Nova():
                     i['id'], i['name'], i['tenant_id'], i['user_id'],
                     i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
                     i['OS-EXT-SRV-ATTR:host'], flavorname,
-                    i['OS-EXT-AZ:availability_zone'])
-                    .set(1)
+                    i['OS-EXT-AZ:availability_zone']).set(1)
             instance_info_launch.labels(config['cloud'],
                     i['id'], i['name'], i['tenant_id'], i['user_id'],
                     i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
                     i['OS-EXT-SRV-ATTR:host'], flavorname,
-                    i['OS-EXT-AZ:availability_zone'])
-                    .set(dp.parse(i['OS-SRV-USG:launched_at']).strftime('%s'))
+                    i['OS-EXT-AZ:availability_zone']).set(
+                        dp.parse(i['OS-SRV-USG:launched_at']).strftime('%s'))
             instance_info_create.labels(config['cloud'],
                     i['id'], i['name'], i['tenant_id'], i['user_id']
                     , i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
                     i['OS-EXT-SRV-ATTR:host'], flavorname,
-                    i['OS-EXT-AZ:availability_zone'])
-                    .set(dp.parse(i['created']).strftime('%s'))
+                    i['OS-EXT-AZ:availability_zone']).set(
+                        dp.parse(i['created']).strftime('%s'))
 
         # If flavors were deleted we can't reliably find out resouerce use
         if missing_flavors:
