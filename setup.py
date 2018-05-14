@@ -19,6 +19,7 @@ setup(
                       "python-novaclient==6.0.0",
                       "python-neutronclient<=6.1.0",
                       "python-cinderclient",
+                      "python-dateutil",
                       "netaddr"],
     long_description=read('README.md'),
     classifiers=[
