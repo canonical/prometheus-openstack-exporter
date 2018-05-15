@@ -477,8 +477,8 @@ class Nova():
                             i['OS-EXT-SRV-ATTR:host'], flavorname,
                             i['OS-EXT-AZ:availability_zone']).set(
                                 dp.parse(i['OS-SRV-USG:launched_at']).strftime('%s'))
-            except Exception:
-                pass
+            except TypeError as te:
+                log.debug(te.message)
 
             try:
                     instance_info_create.labels(config['cloud'],
@@ -487,8 +487,8 @@ class Nova():
                             i['OS-EXT-SRV-ATTR:host'], flavorname,
                             i['OS-EXT-AZ:availability_zone']).set(
                                 dp.parse(i['created']).strftime('%s'))
-            except Exception:
-                pass
+            except TypeError as te:
+                log.debug(te.message)
 
         # If flavors were deleted we can't reliably find out resouerce use
         if missing_flavors:
