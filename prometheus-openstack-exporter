@@ -476,7 +476,7 @@ class Nova():
                             i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
                             i['OS-EXT-SRV-ATTR:host'], flavorname,
                             i['OS-EXT-AZ:availability_zone']).set(
-                                dp.parse(i['OS-SRV-USG:launched_at']).strftime('%s')*1000)
+                                dp.parse(i['OS-SRV-USG:launched_at']).strftime('%s000'))
             except TypeError as te:
                 log.debug(te.message)
 
@@ -486,7 +486,7 @@ class Nova():
                             , i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
                             i['OS-EXT-SRV-ATTR:host'], flavorname,
                             i['OS-EXT-AZ:availability_zone']).set(
-                                dp.parse(i['created']).strftime('%s')*1000)
+                                dp.parse(i['created']).strftime('%s000'))
             except TypeError as te:
                 log.debug(te.message)
 
