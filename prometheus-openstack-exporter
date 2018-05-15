@@ -425,13 +425,13 @@ class Nova():
                             'user_id', 'vm_state', 'power_state',
                             'hypervisor_hostname', 'flavor', 'az']
                             , registry=self.registry)
-        instance_info_launch=Gauge('nova_instance_launch_s',
+        instance_info_launch=Gauge('nova_instance_launch_ms',
                             'Information about specific instances',
                             ['cloud','id', 'name', 'tenant_id',
                             'user_id', 'vm_state', 'power_state',
                             'hypervisor_hostname', 'flavor', 'az']
                             , registry=self.registry)
-        instance_info_create=Gauge('nova_instance_created_s',
+        instance_info_create=Gauge('nova_instance_created_ms',
                             'Information about specific instances',
                             ['cloud','id', 'name', 'tenant_id',
                             'user_id', 'vm_state', 'power_state',
@@ -476,7 +476,7 @@ class Nova():
                             i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
                             i['OS-EXT-SRV-ATTR:host'], flavorname,
                             i['OS-EXT-AZ:availability_zone']).set(
-                                dp.parse(i['OS-SRV-USG:launched_at']).strftime('%s'))
+                                dp.parse(i['OS-SRV-USG:launched_at']).strftime('%s')*1000)
             except TypeError as te:
                 log.debug(te.message)
 
@@ -486,7 +486,7 @@ class Nova():
                             , i['OS-EXT-STS:vm_state'], i['OS-EXT-STS:power_state'],
                             i['OS-EXT-SRV-ATTR:host'], flavorname,
                             i['OS-EXT-AZ:availability_zone']).set(
-                                dp.parse(i['created']).strftime('%s'))
+                                dp.parse(i['created']).strftime('%s')*1000)
             except TypeError as te:
                 log.debug(te.message)
 
