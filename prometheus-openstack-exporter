@@ -119,8 +119,19 @@ def get_clients():
 
     else:
         raise(ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
+    try:
+        gnocchi_service = keystone.services.list(name="gnocchi")
+        log.debug("gnocchi service:" + str(gnocchi_service))
+        if len(gnocchi_service) > 0:
+            from gnocchiclient.v1 import client as gnocchi_client
+
+            gnocchi = gnocchi_client.Client(session=sess_admin)
+    except:
+        gnocchi = None
+        log.debug("No gnocchi service found. Not scraping gnocchi metrics")
+        pass
     log.debug("Client setup done, keystone ver {}".format(ks_version))
-    return (keystone, nova, neutron, cinder)
+    return (keystone, nova, neutron, cinder, gnocchi)
 
 
 class DataGatherer(Thread):
@@ -142,7 +153,7 @@ class DataGatherer(Thread):
         while True:
             start_time = time()
             try:
-                keystone, nova, neutron, cinder = get_clients()
+                keystone, nova, neutron, cinder, gnocchi = get_clients()
 
                 try:
                     prodstack['tenants'] = [x._info for x in keystone.tenants.list()]
@@ -183,6 +194,11 @@ class DataGatherer(Thread):
                         prodstack['nova_quotas'][tid] = nova.quotas.get(tid, detail=True)._info
                     except:
                         prodstack['nova_quotas'][tid] = nova.quotas.get(tid)._info
+
+
+                if gnocchi != None:
+                    prodstack['gnocchi'] = {}
+                    prodstack['gnocchi']['status'] = gnocchi.status.get()
 
             except:
                 # Ignore failures, we will try again after refresh_interval.
@@ -591,6 +607,28 @@ class Swift():
         self.gen_replication_stats()
         return generate_latest(self.registry)
 
+class Gnocchi():
+    def __init__(self):
+        self.registry = CollectorRegistry()
+        self.prodstack = {}
+        with open(config['cache_file'], 'rb') as f:
+            self.prodstack = pickle.load(f)[0]
+
+    def get_status(self):
+        measures = Gauge('gnocchi_measures_to_process',
+                    'Gnocchi number of measures to process',
+                    ['cloud'], registry=self.registry)
+        metrics = Gauge('gnocchi_metrics_to_process',
+                    'Gnocchi number of metric having measures to process',
+                    ['cloud'], registry=self.registry)
+        q = self.prodstack['gnocchi']['status']['storage']['summary']
+        log.debug("Gnocchi: " + str(q))
+        measures.labels(config['cloud']).inc(q['measures'])
+        metrics.labels(config['cloud']).inc(q['metrics'])
+
+    def get_stats(self):
+        self.get_status()
+        return generate_latest(self.registry)
 
 class ForkingHTTPServer(ForkingMixIn, HTTPServer):
     pass
@@ -608,11 +646,13 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
                 nova = Nova()
                 cinder = Cinder()
                 swift = Swift()
+                gnocchi = Gnocchi()
                 log.debug("Collecting stats..")
                 output = neutron.get_stats() + \
                     nova.get_stats() + \
                     cinder.get_stats() + \
                     swift.get_stats() + \
+                    gnocchi.get_stats() + \
                     data_gatherer.get_stats()
                 self.send_response(200)
                 self.send_header('Content-Type', CONTENT_TYPE_LATEST)
