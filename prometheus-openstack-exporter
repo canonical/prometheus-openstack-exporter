@@ -381,18 +381,26 @@ class Nova():
         free_ram_mbs = host['memory_mb'] * config['openstack_allocation_ratio_ram'] - host['memory_mb_used']
         free_disk_gbs = host['local_gb'] * config['openstack_allocation_ratio_disk'] - host['local_gb_used']
         s = config['schedulable_instance_size']
-        return min(int(free_vcpus / s['vcpu']),
-                   int(free_ram_mbs / s['ram_mbs']),
-                   int(free_disk_gbs / s['disk_gbs']))
+        if s['disk_gbs'] > 0:
+            return min(int(free_vcpus / s['vcpu']),
+                    int(free_ram_mbs / s['ram_mbs']),
+                    int(free_disk_gbs / s['disk_gbs']))
+        else:
+            return min(int(free_vcpus / s['vcpu']),
+                    int(free_ram_mbs / s['ram_mbs']))
 
     def _get_schedulable_instances_capacity(self, host):
         capacity_vcpus = host['vcpus'] * config['openstack_allocation_ratio_vcpu']
         capacity_ram_mbs = host['memory_mb'] * config['openstack_allocation_ratio_ram']
         capacity_disk_gbs = host['local_gb'] * config['openstack_allocation_ratio_disk']
         s = config['schedulable_instance_size']
-        return min(int(capacity_vcpus / s['vcpu']),
-                   int(capacity_ram_mbs / s['ram_mbs']),
-                   int(capacity_disk_gbs / s['disk_gbs']))
+        if s['disk_gbs'] > 0:
+            return min(int(capacity_vcpus / s['vcpu']),
+                    int(capacity_ram_mbs / s['ram_mbs']),
+                    int(capacity_disk_gbs / s['disk_gbs']))
+        else:
+            return min(int(capacity_vcpus / s['vcpu']),
+                    int(capacity_ram_mbs / s['ram_mbs']))
 
     def gen_hypervisor_stats(self):
         labels = ['cloud', 'hypervisor_hostname', 'aggregate', 'nova_service_status', 'arch']
