@@ -2,6 +2,7 @@
 
 Exposes high level [OpenStack](http://www.openstack.org/) metrics to [Prometheus](https://prometheus.io/).
 
+Data can be visualised using [Grafana](https://grafana.com/) and the [OpenStack Clouds Dashboard](https://grafana.com/dashboards/7924)
 
 # Deployment
 
