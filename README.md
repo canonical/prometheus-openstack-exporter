@@ -63,6 +63,20 @@ Or to run interactively:
 
 ```
 
+Or build by Dockerfile:
+
+```
+docker build -t prometheus-openstack-exporter .
+docker run \
+    -itd \
+    --name prom-openstack-exporter \
+    --env-file $(pwd)/myenv \
+    --volume $(pwd)/prometheus-openstack-exporter.yaml:/prometheus-openstack-exporter.yaml:ro \
+    --publish 9183:9183 \
+    prom-openstack-exporter:v1
+
+```
+
 # Configuration
 
 Configuration options are documented in prometheus-openstack-exporter.yaml shipped with this project
