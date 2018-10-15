@@ -71,7 +71,7 @@ docker run \
     -itd \
     --name prom-openstack-exporter \
     --env-file $(pwd)/myenv \
-    --volume $(pwd)/prometheus-openstack-exporter.yaml:/prometheus-openstack-exporter.yaml:ro \
+    --volume $(pwd)/prometheus-openstack-exporter.yaml:/etc/prometheus/prometheus-openstack-exporter.yaml:ro \
     --publish 9183:9183 \
     prom-openstack-exporter:v1
 
