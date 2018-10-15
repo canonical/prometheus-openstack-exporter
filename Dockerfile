@@ -11,3 +11,4 @@ COPY prometheus-openstack-exporter.sh /
 COPY prometheus-openstack-exporter.sample.yaml /
 
 ENTRYPOINT ["/bin/sh", "/prometheus-openstack-exporter.sh"]
+aa
