@@ -338,13 +338,22 @@ class Nova():
         self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
         self.flavor_map = {f['id']: {'ram': f['ram'], 'disk': f['disk'], 'vcpus': f['vcpus']}
                            for f in self.prodstack['flavors']}
+        self.aggregate_list= []
         self.aggregate_map = {}
         self.services_map = {}
         for s in self.prodstack['services']:
             if s['binary'] == 'nova-compute':
                 self.services_map[s['host']] = s['status']
         for agg in self.prodstack['aggregates']:
-            self.aggregate_map.update({i: agg['name'] for i in agg['hosts']})
+            for h in agg['hosts']:
+                self.aggregate_list.append({h: agg['name']})
+        for i in self.aggregate_list:
+            for key in i:
+                self.aggregate_map.setdefault(key, [])
+                if not i[key] in self.aggregate_map[key]:
+                   self.aggregate_map[key].append(i[key])
+        for i in self.aggregate_map.keys():
+            self.aggregate_map[i] = ",".join(self.aggregate_map[i])
 
     def _get_schedulable_instances(self, host):
         free_vcpus = host['vcpus'] * config['openstack_allocation_ratio_vcpu'] - host['vcpus_used']
