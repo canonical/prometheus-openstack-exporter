@@ -10,6 +10,8 @@ openstack_allocation_ratio_vcpu: VCPU_RATIO # 1.0
 openstack_allocation_ratio_ram: RAM_RATIO # 1.0
 openstack_allocation_ratio_disk: DISK_RATIO # 1.0
 
+log_level: INFO
+
 # To export hypervisor_schedulable_instances metric set desired instance size
 schedulable_instance_size:
     ram_mbs: SCHEDULABLE_INSTANCE_RAM # 4096
