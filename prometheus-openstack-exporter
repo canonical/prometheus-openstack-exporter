@@ -235,7 +235,8 @@ class Neutron():
 
         self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
         self.network_map = {n['id']: n['name'] for n in self.prodstack['networks']}
-        self.subnet_map = {n['id']: {'name': n['name'], 'pool': n['allocation_pools']} for n in self.prodstack['subnets']}
+        self.subnet_map = {
+            n['id']: {'name': n['name'], 'pool': n['allocation_pools']} for n in self.prodstack['subnets']}
         self.routers = self.prodstack['routers']
         self.ports = self.prodstack['ports']
         self.floating_ips = self.prodstack['floatingips']
@@ -382,9 +383,11 @@ class Nova():
         vms = Gauge('hypervisor_running_vms', 'Number of running VMs', labels, registry=self.registry)
         vcpus_total = Gauge('hypervisor_vcpus_total', 'Total number of vCPUs', labels, registry=self.registry)
         vcpus_used = Gauge('hypervisor_vcpus_used', 'Number of used vCPUs', labels, registry=self.registry)
-        mem_total = Gauge('hypervisor_memory_mbs_total', 'Total amount of memory in MBs', labels, registry=self.registry)
+        mem_total = Gauge(
+            'hypervisor_memory_mbs_total', 'Total amount of memory in MBs', labels, registry=self.registry)
         mem_used = Gauge('hypervisor_memory_mbs_used', 'Used memory in MBs', labels, registry=self.registry)
-        disk_total = Gauge('hypervisor_disk_gbs_total', 'Total amount of disk space in GBs', labels, registry=self.registry)
+        disk_total = Gauge(
+            'hypervisor_disk_gbs_total', 'Total amount of disk space in GBs', labels, registry=self.registry)
         disk_used = Gauge('hypervisor_disk_gbs_used', 'Used disk space in GBs', labels, registry=self.registry)
         schedulable_instances = Gauge('hypervisor_schedulable_instances',
                                       'Number of schedulable instances, see "schedulable_instance_size" option',
@@ -410,7 +413,8 @@ class Nova():
             elif type(cpu_info) != dict:
                 cpu_info = json.loads(cpu_info)
                 arch = cpu_info['arch']
-            label_values = [config['cloud'], host, self.aggregate_map.get(host, 'unknown'), self.services_map[host], arch]
+            label_values = [
+                config['cloud'], host, self.aggregate_map.get(host, 'unknown'), self.services_map[host], arch]
             # Disabled hypervisors return None below, convert to 0
             vms.labels(*label_values).set(squashnone(h['running_vms']))
             vcpus_total.labels(*label_values).set(squashnone(h['vcpus']))

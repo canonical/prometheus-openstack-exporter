@@ -3,3 +3,11 @@ prime
 *.snap
 snap
 stage
+*.pyc
+*.swp
+*~
+__pycache__
+.venv
+/bin
+/pkg
+debian/files
