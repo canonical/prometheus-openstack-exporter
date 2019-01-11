@@ -181,10 +181,10 @@ class DataGatherer(Thread):
                     # old OS versions (e.g. Mitaka) will 404 if we request details
                     try:
                         prodstack['nova_quotas'][tid] = nova.quotas.get(tid, detail=True)._info
-                    except:
+                    except Exception:
                         prodstack['nova_quotas'][tid] = nova.quotas.get(tid)._info
 
-            except:
+            except Exception:
                 # Ignore failures, we will try again after refresh_interval.
                 # Most of them are termporary ie. connectivity problmes
                 # To alert on stale cache use openstack_exporter_cache_age_seconds metric
@@ -618,7 +618,7 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-Type', CONTENT_TYPE_LATEST)
                 self.end_headers()
                 self.wfile.write(output)
-            except:
+            except:  # noqa: E722
                 self.send_response(500)
                 self.end_headers()
                 self.wfile.write(traceback.format_exc())
