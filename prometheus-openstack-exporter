@@ -204,12 +204,12 @@ class DataGatherer(Thread):
                     'Cache age in seconds. It can reset more frequently '
                     'than scraping interval so we use Gauge',
                     labels, registry=registry)
-        l = [config['cloud']]
-        age.labels(*l).set(time() - path.getmtime(self.cache_file))
+        label_values = [config['cloud']]
+        age.labels(*label_values).set(time() - path.getmtime(self.cache_file))
         duration = Gauge('openstack_exporter_cache_refresh_duration_seconds',
                          'Cache refresh duration in seconds.',
                          labels, registry=registry)
-        duration.labels(*l).set(self.duration)
+        duration.labels(*label_values).set(self.duration)
         return generate_latest(registry)
 
 
@@ -280,8 +280,8 @@ class Neutron():
                         # drown the IPv4 numbers we might care about.
                         continue
                     size += IPRange(pool['start'], pool['end']).size
-            l = [config['cloud'], self.network_map[n['id']]]
-            net_size.labels(*l).set(size)
+            label_values = [config['cloud'], self.network_map[n['id']]]
+            net_size.labels(*label_values).set(size)
 
     def get_stats(self):
         labels = ['cloud', 'subnet_name', 'tenant', 'ip_type', 'ip_status']
@@ -397,19 +397,19 @@ class Nova():
             elif type(cpu_info) != dict:
                 cpu_info = json.loads(cpu_info)
                 arch = cpu_info['arch']
-            l = [config['cloud'], host, self.aggregate_map.get(host, 'unknown'), self.services_map[host], arch]
+            label_values = [config['cloud'], host, self.aggregate_map.get(host, 'unknown'), self.services_map[host], arch]
             # Disabled hypervisors return None below, convert to 0
-            vms.labels(*l).set(squashnone(h['running_vms']))
-            vcpus_total.labels(*l).set(squashnone(h['vcpus']))
-            vcpus_used.labels(*l).set(squashnone(h['vcpus_used']))
-            mem_total.labels(*l).set(squashnone(h['memory_mb']))
-            mem_used.labels(*l).set(squashnone(h['memory_mb_used']))
-            disk_total.labels(*l).set(squashnone(h['local_gb']))
-            disk_used.labels(*l).set(squashnone(h['local_gb_used']))
+            vms.labels(*label_values).set(squashnone(h['running_vms']))
+            vcpus_total.labels(*label_values).set(squashnone(h['vcpus']))
+            vcpus_used.labels(*label_values).set(squashnone(h['vcpus_used']))
+            mem_total.labels(*label_values).set(squashnone(h['memory_mb']))
+            mem_used.labels(*label_values).set(squashnone(h['memory_mb_used']))
+            disk_total.labels(*label_values).set(squashnone(h['local_gb']))
+            disk_used.labels(*label_values).set(squashnone(h['local_gb_used']))
 
             if config.get("schedulable_instance_size", False):
-                schedulable_instances.labels(*l).set(self._get_schedulable_instances(h))
-                schedulable_instances_capacity.labels(*l).set(self._get_schedulable_instances_capacity(h))
+                schedulable_instances.labels(*label_values).set(self._get_schedulable_instances(h))
+                schedulable_instances_capacity.labels(*label_values).set(self._get_schedulable_instances_capacity(h))
 
     def gen_instance_stats(self):
         missing_flavors = False
@@ -456,12 +456,12 @@ class Nova():
         labels = ['cloud', 'resource']
         openstack_overcommit = Gauge('openstack_allocation_ratio', 'Openstack overcommit ratios',
                                      labels, registry=self.registry)
-        l = [config['cloud'], 'vcpu']
-        openstack_overcommit.labels(*l).set(config['openstack_allocation_ratio_vcpu'])
-        l = [config['cloud'], 'ram']
-        openstack_overcommit.labels(*l).set(config['openstack_allocation_ratio_ram'])
-        l = [config['cloud'], 'disk']
-        openstack_overcommit.labels(*l).set(config['openstack_allocation_ratio_disk'])
+        label_values = [config['cloud'], 'vcpu']
+        openstack_overcommit.labels(*label_values).set(config['openstack_allocation_ratio_vcpu'])
+        label_values = [config['cloud'], 'ram']
+        openstack_overcommit.labels(*label_values).set(config['openstack_allocation_ratio_ram'])
+        label_values = [config['cloud'], 'disk']
+        openstack_overcommit.labels(*label_values).set(config['openstack_allocation_ratio_disk'])
 
     def gen_quota_stats(self):
         cores = Gauge('nova_quota_cores',
