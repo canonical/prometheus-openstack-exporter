@@ -561,6 +561,36 @@ class Swift():
             for ring in ['accounts', 'objects', 'containers']:
                 swift_quarantine.labels(config['cloud'], h, ring).set(r.json().get(ring))
 
+    def _get_object_ring_replication_stats(self, h, swift_repl_duration):
+        # Object replication is special
+        try:
+            r = requests.get(self.baseurl.format(h, 'replication/object'))
+        except requests.exceptions.RequestException:
+            return
+        try:
+            swift_repl_duration.labels(config['cloud'], h, 'object').set(r.json()['object_replication_time'])
+        except TypeError:
+            print(traceback.format_exc())
+
+    def _get_ring_replication_stats(self, ring, h, swift_repl_duration, swift_repl):
+        metrics = ['attempted', 'diff', 'diff_capped', 'empty',
+                   'failure', 'hashmatch', 'no_change', 'remote_merge',
+                   'remove', 'rsync', 'success', 'ts_repl']
+        try:
+            r = requests.get(self.baseurl.format(h, 'replication/' + ring))
+        except requests.exceptions.RequestException:
+            return
+        try:
+            swift_repl_duration.labels(config['cloud'], h, ring).set(r.json()['replication_time'])
+        except TypeError:
+            print(traceback.format_exc())
+
+        for metric in metrics:
+            try:
+                swift_repl.labels(config['cloud'], h, ring, metric).set(r.json()['replication_stats'][metric])
+            except TypeError:
+                print(traceback.format_exc())
+
     def gen_replication_stats(self):
         labels = ['cloud', 'hostname', 'ring', 'type']
         swift_repl = Gauge('swift_replication_stats', 'Swift replication stats', labels, registry=self.registry)
@@ -568,34 +598,9 @@ class Swift():
         swift_repl_duration = Gauge('swift_replication_duration_seconds', 'Swift replication duration in seconds',
                                     labels, registry=self.registry)
         for h in self.swift_hosts:
-            metrics = ['attempted', 'diff', 'diff_capped', 'empty',
-                       'failure', 'hashmatch', 'no_change', 'remote_merge',
-                       'remove', 'rsync', 'success', 'ts_repl']
-            # Object replication is special
-            try:
-                r = requests.get(self.baseurl.format(h, 'replication/object'))
-            except requests.exceptions.RequestException:
-                continue
-            try:
-                swift_repl_duration.labels(config['cloud'], h, 'object').set(r.json()['object_replication_time'])
-            except TypeError:
-                print(traceback.format_exc())
-
+            self._get_object_ring_replication_stats(h, swift_repl_duration)
             for ring in ['account', 'container']:
-                try:
-                    r = requests.get(self.baseurl.format(h, 'replication/' + ring))
-                except requests.exceptions.RequestException:
-                    continue
-                try:
-                    swift_repl_duration.labels(config['cloud'], h, ring).set(r.json()['replication_time'])
-                except TypeError:
-                    print(traceback.format_exc())
-
-                for metric in metrics:
-                    try:
-                        swift_repl.labels(config['cloud'], h, ring, metric).set(r.json()['replication_stats'][metric])
-                    except TypeError:
-                        print(traceback.format_exc())
+                self._get_ring_replication_stats(ring, h, swift_repl_duration, swift_repl)
 
     def get_stats(self):
         self.gen_up_stats()
