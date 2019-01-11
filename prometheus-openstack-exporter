@@ -689,6 +689,26 @@ class ForkingHTTPServer(ForkingMixIn, HTTPServer):
     pass
 
 
+# This could perhaps be cleverer, but surely not simpler.
+COLLECTORS = {
+    'cinder': Cinder,
+    'neutron': Neutron,
+    'nova': Nova,
+    'swift': Swift,
+    'swift-account-usage': SwiftAccountUsage,
+    }
+
+DATA_GATHERER_USERS = [
+    'cinder',
+    'neutron',
+    'nova',
+    ]
+
+
+def data_gatherer_needed(config):
+    return set(config['enabled_collectors']).intersection(DATA_GATHERER_USERS)
+
+
 class OpenstackExporterHandler(BaseHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
@@ -697,18 +717,14 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
         url = urlparse.urlparse(self.path)
         if url.path == '/metrics':
             try:
-                neutron = Neutron()
-                nova = Nova()
-                cinder = Cinder()
-                swift = Swift()
-                swift_account_usage = SwiftAccountUsage()
+                collectors = [COLLECTORS[collector]() for collector in config['enabled_collectors']]
                 log.debug("Collecting stats..")
-                output = neutron.get_stats() + \
-                    nova.get_stats() + \
-                    cinder.get_stats() + \
-                    swift.get_stats() + \
-                    swift_account_usage.get_stats() + \
-                    data_gatherer.get_stats()
+                output = ''
+                for collector in collectors:
+                    output += collector.get_stats()
+                if data_gatherer:
+                    output += data_gatherer.get_stats()
+
                 self.send_response(200)
                 self.send_header('Content-Type', CONTENT_TYPE_LATEST)
                 self.end_headers()
@@ -752,7 +768,9 @@ if __name__ == '__main__':
     else:
         log.addHandler(logging.StreamHandler())
     config = yaml.safe_load(args.config_file.read())
-    data_gatherer = DataGatherer()
-    data_gatherer.start()
+    data_gatherer = None
+    if data_gatherer_needed(config):
+        data_gatherer = DataGatherer()
+        data_gatherer.start()
     server = ForkingHTTPServer(('', config.get('listen_port')), handler)
     server.serve_forever()

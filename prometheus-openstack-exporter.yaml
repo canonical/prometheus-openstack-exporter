@@ -10,6 +10,15 @@ openstack_allocation_ratio_vcpu: 2.5
 openstack_allocation_ratio_ram: 1.1
 openstack_allocation_ratio_disk: 1.0
 
+# Configure the enabled collectors here.  Note that the Swift account
+# collector in particular has special requirements.
+enabled_collectors:
+  - cinder
+  - neutron
+  - nova
+  - swift
+#  - swift-account-usage
+
 # To export hypervisor_schedulable_instances metric set desired instance size
 schedulable_instance_size:
     ram_mbs: 4096
