@@ -1,6 +1,4 @@
 PROJECTPATH = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
-export GOPATH := $(PROJECTPATH)
-export PATH := /usr/lib/go-1.11/bin:$(PATH)
 
 VENV := .venv
 VENV_PIP := $(PROJECTPATH)/$(VENV)/bin/pip
@@ -12,14 +10,7 @@ FLAKE8 := $(VENV_PYTHON) -m flake8
 
 all: lint test build
 
-build:
-	go install project/cmd/example
-
-clean: clean-go clean-python clean-venv
-
-clean-go:
-	rm -rf $(PROJECTPATH)/bin
-	rm -rf $(PROJECTPATH)/pkg
+clean: clean-python clean-venv
 
 clean-python:
 	rm -rf $(PROJECTPATH)/__pycache__
@@ -36,23 +27,15 @@ deb-src:
 install-build-depends:
 	sudo apt install \
 	    debhelper \
-	    git-buildpackage \
-	    golang-1.11  # Requires ppa:canonical-sysadmins/golang
+	    git-buildpackage
 
-lint: lint-go lint-python
-
-lint-go:
-	go fmt project/...
-	go vet project/...
+lint: lint-python
 
 # See .flake8 for config options.
 lint-python: $(VENV)
 	$(FLAKE8) $(PROJECTPATH) $(EXTRA_PY)
 
-test: test-go test-python
-
-test-go:
-	go test project/...
+test: test-python
 
 test-python: $(VENV)
 	$(VENV_PYTHON) -m unittest discover tests
