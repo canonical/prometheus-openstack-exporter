@@ -47,7 +47,7 @@ from netaddr import IPRange
 import random
 import swift.common.utils
 
-from swift.common.ring import ring
+from swift.common.ring.ring import Ring
 
 import logging
 import logging.handlers
@@ -649,7 +649,7 @@ class SwiftAccountUsage():
 
     def _get_account_ring(self):
         """Read the account ring from the configured location, and return it."""
-        return ring.Ring(
+        return Ring(
             serialized_path=self.ring_path,
             ring_name='account',
             )
