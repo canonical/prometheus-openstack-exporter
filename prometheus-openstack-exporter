@@ -640,7 +640,7 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-Type', CONTENT_TYPE_LATEST)
                 self.end_headers()
                 self.wfile.write(output)
-            except:  # noqa: E722
+            except Exception:
                 self.send_response(500)
                 self.end_headers()
                 self.wfile.write(traceback.format_exc())
