@@ -5,6 +5,7 @@ from setuptools import setup
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
+
 setup(
     name="prometheus_openstack_exporter",
     version="0.0.4",

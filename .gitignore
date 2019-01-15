@@ -1,5 +1,13 @@
+*.pyc
+*.snap
+*.swp
+*~
+.venv
+/bin
+/pkg
+__pycache__
+debian/files
 parts
 prime
-*.snap
 snap
 stage
