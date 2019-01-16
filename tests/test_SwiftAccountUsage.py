@@ -17,26 +17,25 @@ class TestSwiftAccountUsage(unittest.TestCase):
     @patch('prometheus_openstack_exporter.config')
     def test__get_account_usage(self, _config, _requests, _SwiftAccountUsage__get_account_ring):
         _config = MagicMock()  # noqa: F841
-        _requests = Mock()  # noqa: F841
+        _requests = MagicMock()  # noqa: F841
         _SwiftAccountUsage__get_account_ring = MagicMock()  # noqa: F841
 
         s = poe.SwiftAccountUsage()
-        s.account_ring = Mock()
-        s.account_ring.get_nodes = MagicMock(
-            return_value=(26701, [
-                {'device': 'sdb', 'id': 0, 'ip': '10.24.0.18', 'meta': u'', 'port': 6002,
-                 'region': 1, 'replication_ip': '10.24.0.18', 'replication_port': 6002, 'weight': 100.0, 'zone': 1},
-                {'device': 'sdd', 'id': 50, 'ip': '10.24.0.71', 'meta': u'', 'port': 6002,
-                 'region': 1, 'replication_ip': '10.24.0.71', 'replication_port': 6002, 'weight': 180.0, 'zone': 3},
-                {'device': 'sdi', 'id': 59, 'ip': '10.24.0.72', 'meta': u'', 'port': 6002,
-                 'region': 1, 'replication_ip': '10.24.0.72', 'replication_port': 6002, 'weight': 360.0, 'zone': 2}]))
+        s.account_ring = MagicMock()
+        s.account_ring.get_nodes.return_value = (26701, [
+            {'device': 'sdb', 'id': 0, 'ip': '10.24.0.18', 'meta': u'', 'port': 6002,
+             'region': 1, 'replication_ip': '10.24.0.18', 'replication_port': 6002, 'weight': 100.0, 'zone': 1},
+            {'device': 'sdd', 'id': 50, 'ip': '10.24.0.71', 'meta': u'', 'port': 6002,
+             'region': 1, 'replication_ip': '10.24.0.71', 'replication_port': 6002, 'weight': 180.0, 'zone': 3},
+            {'device': 'sdi', 'id': 59, 'ip': '10.24.0.72', 'meta': u'', 'port': 6002,
+             'region': 1, 'replication_ip': '10.24.0.72', 'replication_port': 6002, 'weight': 360.0, 'zone': 2}])
 
-        response_mock = MagicMock()
+        response_mock = Mock()
         response_mock.configure_mock(
             status_code=204,
             headers=CaseInsensitiveDict({'x-account-bytes-used': '368259416'}),
             )
-        poe.requests.head = MagicMock(return_value=response_mock)
+        poe.requests.head.return_value = response_mock
 
         # Assert that _get_account_ring does what we expect.
         self.assertEqual(s._get_account_usage(ADMIN_SWIFT_ACCOUNT), 368259416)
