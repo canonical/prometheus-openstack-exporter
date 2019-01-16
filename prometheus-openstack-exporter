@@ -634,7 +634,12 @@ class SwiftAccountUsage():
         self.reseller_prefix = config['reseller_prefix']
         self.ring_path = config['ring_path']
 
-        self.account_ring = self._get_account_ring()
+        try:
+            self.account_ring = self._get_account_ring()
+        except SystemExit:
+            # Most likely raised by swift.common.utils.validate_configuration().
+            raise Exception(
+                "Is swift.conf readable or at least one hash path variable configured?")
 
     def _read_keystone_tenants_map(self, map_path):
         m = {}
