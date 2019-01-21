@@ -155,7 +155,7 @@ class DataGatherer(Thread):
         info['subnets'] = neutron.list_subnets()['subnets']
         return info
 
-    def _get_nova_info(self, nova, cinder):
+    def _get_nova_info(self, nova, cinder, prodstack):
         info = {}
         info['hypervisors'] = [x._info for x in nova.hypervisors.list()]
         info['services'] = [x._info for x in nova.services.list()]
@@ -175,7 +175,7 @@ class DataGatherer(Thread):
 
         info['volume_quotas'] = {}
         info['nova_quotas'] = {}
-        for t in info['tenants']:
+        for t in prodstack['tenants']:
             tid = t['id']
             if self.use_nova_volumes:
                 info['volume_quotas'][tid] = cinder.quotas.get(tid, usage=True)._info
@@ -184,6 +184,7 @@ class DataGatherer(Thread):
                 info['nova_quotas'][tid] = nova.quotas.get(tid, detail=True)._info
             except Exception:
                 info['nova_quotas'][tid] = nova.quotas.get(tid)._info
+        return info
 
     def run(self):
         log.debug("Starting data gather thread")
@@ -195,7 +196,7 @@ class DataGatherer(Thread):
 
                 prodstack.update(self._get_keystone_info(keystone))
                 prodstack.update(self._get_neutron_info(neutron))
-                prodstack.update(self._get_nova_info(nova, cinder))
+                prodstack.update(self._get_nova_info(nova, cinder, prodstack))
 
             except Exception:
                 # Ignore failures, we will try again after refresh_interval.
