@@ -168,7 +168,7 @@ class DataGatherer(Thread):
             search_opts = {'all_tenants': '1', 'limit': '100', 'marker': marker}
             new_instances = [x._info for x in nova.servers.list(search_opts=search_opts)]
             if new_instances:
-                marker = new_instances[-1]['id']
+                search_opts['marker'] = new_instances[-1]['id']
                 info['instances'].extend(new_instances)
             else:
                 break
