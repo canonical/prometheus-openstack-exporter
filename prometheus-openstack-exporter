@@ -52,6 +52,7 @@ from swift.common.ring.ring import Ring
 import logging
 import logging.handlers
 
+config = None
 log = logging.getLogger('poe-logger')
 
 
