@@ -253,7 +253,8 @@ class Neutron():
         owner = "network:router_gateway"
         for port in self.ports:
             if port["device_id"] == uuid and port["device_owner"] == owner:
-                return port["fixed_ips"][0]["ip_address"]
+                if port["status"] == "ACTIVE" and port["fixed_ips"]:
+                    return port["fixed_ips"][0]["ip_address"]
 
     def get_floating_ips(self):
         ips = {}
