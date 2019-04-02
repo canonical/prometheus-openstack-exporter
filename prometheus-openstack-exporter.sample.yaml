@@ -1,0 +1,58 @@
+# Example configuration file for prometheus-openstack-exporter
+# Copyright (C) 2016-2019 Canonical, Ltd.
+#
+
+listen_port: VAR_LISTEN_PORT # listenPort=9183
+cache_refresh_interval: VAR_CACHE_REFRESH_INTERVAL # cacheRefreshInterval=300 In seconds
+cache_file: VAR_CACHE_FILE # cacheFileName=$(mktemp -p /dev/shm/)
+cloud: VAR_CLOUD # cloud=${OS_REGION_NAME:-mycloud}
+openstack_allocation_ratio_vcpu: VAR_VCPU_RATIO # vcpuRatio=1.0
+openstack_allocation_ratio_ram: VAR_RAM_RATIO # ramRatio=1.0
+openstack_allocation_ratio_disk: VAR_DISK_RATIO # diskRatio=1.0
+
+# Configure the enabled collectors here.  Note that the Swift account
+# collector in particular has special requirements.
+enabled_collectors: # enabledCollectors=cinder neutron nova
+  - VAR_ENABLED_COLLECTORS
+
+# To export hypervisor_schedulable_instances metric set desired instance size
+schedulable_instance_size:
+    ram_mbs: VAR_SCHEDULABLE_INSTANCE_RAM # schedulableInstanceRam=4096
+    vcpu: VAR_SCHEDULABLE_INSTANCE_VCPU # schedulableInstanceVcpu=2
+    disk_gbs: VAR_SCHEDULABLE_INSTANCE_DISK # schedulableInstanceDisk=20
+
+# Uncomment if the cloud doesn't provide cinder / nova volumes:
+use_nova_volumes: VAR_USE_NOVA_VOLUMES # useNovaVolumes=True
+
+## Swift
+
+# There is no way to retrieve them using OpenStack APIs
+# For clouds deployed without swift, remove this part
+swift_hosts: # swiftHosts=host1.example.com host2.example.com
+    - VAR_SWIFT_HOSTS
+
+# There is no API to ask Swift for a list of accounts it knows about.
+# Even if there were, Swift (in common case of Keystone auth, at
+# least) only knows them by the corresponding tenant ID, which would
+# be a less than useful label without post-processing.  The following
+# should point to a file containing one line per tenant, with the
+# tenant name first, then whitespace, followed by the tenant ID.
+keystone_tenants_map: # keystoneTenantsMap="firstname,1234567890 secondname,0987654321"
+  - VAR_KEYSTONE_TENANTS_MAP
+
+# The reseller prefix is typically used by the Swift middleware to
+# keep accounts with different providers separate.  We would ideally
+# look this up dynamically from the Swift configuration.
+# The Keystone middlware defaults to the following value.
+reseller_prefix: VAR_RESELLER_PREFIX # resellerPrefix=AUTH_
+
+ring_path: VAR_RING_PATH # ringPath=/etc/swift
+
+# These will typically be read from /etc/swift/swift.conf.  If that
+# file cannot be opened, then the Swift library will log an error and
+# try to exit.  To run p-s-a-e as a user other than Swift, these
+# settings must be set to the same values as Swift itself, and the
+# above must point to an always-current readable copy of the rings.
+
+hash_path_prefix: VAR_HASH_PATH_PREFIX # hashPathPrefix=
+hash_path_suffix: VAR_HASH_PATH_SUFFIX # hashPathSuffix=
