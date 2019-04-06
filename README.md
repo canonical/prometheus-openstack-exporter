@@ -133,3 +133,8 @@ containers from the account server, load up the container ring, and
 then use container_ring.get_nodes(account, container) and HTTP HEAD on
 one of the resulting nodes to get a containers' statistics, although
 without some caching cleverness this will scale poorly.
+
+# Known Issues
+## EOFError by pickle.py
+
+You should wait. It needs dump file to generate metrics
