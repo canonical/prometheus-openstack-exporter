@@ -20,7 +20,9 @@ setup(
                       "python-novaclient==6.0.0",
                       "python-neutronclient<=6.1.0",
                       "python-cinderclient",
-                      "netaddr"],
+                      "netaddr",
+                      "swift"
+    ],
     long_description=read('README.md'),
     classifiers=[
         "Development Status :: 4 - Beta",
