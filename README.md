@@ -64,6 +64,34 @@ Or to run interactively:
 
 ```
 
+Or use Docker Image:
+
+```
+# docker-compose.yml
+version: '2.1'
+services:
+  ostackexporter:
+    image: moghaddas/prom-openstack-exporter:latest
+    # check this examle env file
+    env_file:
+      - ./admin.novarc.example
+    restart: unless-stopped
+    expose:
+      - 9183
+    ports:
+      - 9183:9183
+
+# docker run
+docker run \
+  -itd \
+  --name prom_openstack_exporter \
+  -p 9183:9183 \
+  --env-file=$(pwd)/admin.novarc.example \
+  --restart=unless-stopped \
+  moghaddas/prom-openstack-exporter:latest
+
+```
+
 # Configuration
 
 Configuration options are documented in prometheus-openstack-exporter.yaml shipped with this project
@@ -105,3 +133,8 @@ containers from the account server, load up the container ring, and
 then use container_ring.get_nodes(account, container) and HTTP HEAD on
 one of the resulting nodes to get a containers' statistics, although
 without some caching cleverness this will scale poorly.
+
+# Known Issues
+## EOFError by pickle.py
+
+You should wait. It needs dump file to generate metrics
