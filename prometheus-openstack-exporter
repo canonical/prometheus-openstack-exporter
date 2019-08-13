@@ -634,8 +634,8 @@ class SwiftAccountUsage():
         if self.hash_path_suffix:
             swift.common.utils.HASH_PATH_SUFFIX = self.hash_path_suffix
 
-        self.reseller_prefix = config['reseller_prefix']
-        self.ring_path = config['ring_path']
+        self.reseller_prefix = config.get('reseller_prefix', 'AUTH_')
+        self.ring_path = config.get('ring_path', '/etc/swift')
 
         try:
             self.account_ring = self._get_account_ring()
@@ -677,7 +677,7 @@ class SwiftAccountUsage():
 
     def gen_account_stats(self):
         self.keystone_tenants_map = self._read_keystone_tenants_map(
-            config['keystone_tenants_map'])
+            config.get('keystone_tenants_map', None))
         labels = ['cloud', 'swift_account', 'tenant']
         swift_account = Gauge(
             'swift_account_bytes_used', 'Swift account usage in bytes', labels, registry=self.registry)
