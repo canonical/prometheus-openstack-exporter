@@ -645,6 +645,9 @@ class SwiftAccountUsage():
                 "Is swift.conf readable or at least one hash path variable configured?")
 
     def _read_keystone_tenants_map(self, map_path):
+        if not map_path:
+            return {}
+
         m = {}
         with open(map_path) as km:
             line = km.readline()
@@ -715,10 +718,10 @@ DATA_GATHERER_USERS = [
 
 def get_collectors(collectors):
     # For backwards compatibility and when enabled_collectors isn't defined,
-    # specify default set of collectors.
+    # specify default set of collectors before commit 662b70f and f27cda8.
     # https://github.com/CanonicalLtd/prometheus-openstack-exporter/issues/80
     if not collectors:
-        return COLLECTORS.keys()
+        return ['cinder', 'swift', 'nova', 'neutron']
     return collectors
 
 
