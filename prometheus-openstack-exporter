@@ -713,8 +713,17 @@ DATA_GATHERER_USERS = [
     ]
 
 
+def get_collectors(collectors):
+    # For backwards compatibility and when enabled_collectors isn't defined,
+    # specify default set of collectors.
+    # https://github.com/CanonicalLtd/prometheus-openstack-exporter/issues/80
+    if not collectors:
+        return COLLECTORS.keys()
+    return collectors
+
+
 def data_gatherer_needed(config):
-    return set(config['enabled_collectors']).intersection(DATA_GATHERER_USERS)
+    return set(get_collectors(config.get('enabled_collectors'))).intersection(DATA_GATHERER_USERS)
 
 
 class OpenstackExporterHandler(BaseHTTPRequestHandler):
@@ -725,7 +734,7 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
         url = urlparse.urlparse(self.path)
         if url.path == '/metrics':
             try:
-                collectors = [COLLECTORS[collector]() for collector in config['enabled_collectors']]
+                collectors = [COLLECTORS[collector]() for collector in get_collectors(config.get('enabled_collectors'))]
                 log.debug("Collecting stats..")
                 output = ''
                 for collector in collectors:

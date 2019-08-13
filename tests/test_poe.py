@@ -21,3 +21,13 @@ class TestPrometheusOpenstackExporter(unittest.TestCase):
             poe.data_gatherer_needed(
                 {'enabled_collectors':
                  ['swift', 'swift-account-usage']}))
+        self.assertEqual(
+            poe.data_gatherer_needed(
+                {'enabled_collectors':
+                 ['cinder', 'neutron', 'nova', 'swift']}),
+            set(['cinder', 'nova', 'neutron']),
+        )
+        self.assertEqual(
+            poe.data_gatherer_needed({}),
+            set(['cinder', 'nova', 'neutron']),
+        )
