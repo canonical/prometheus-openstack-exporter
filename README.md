@@ -2,6 +2,7 @@
 
 Exposes high level [OpenStack](http://www.openstack.org/) metrics to [Prometheus](https://prometheus.io/).
 
+Data can be visualised using [Grafana](https://grafana.com/) and the [OpenStack Clouds Dashboard](https://grafana.com/dashboards/7924)
 
 # Deployment
 
@@ -63,6 +64,34 @@ Or to run interactively:
 
 ```
 
+Or use Docker Image:
+
+```
+# docker-compose.yml
+version: '2.1'
+services:
+  ostackexporter:
+    image: moghaddas/prom-openstack-exporter:latest
+    # check this examle env file
+    env_file:
+      - ./admin.novarc.example
+    restart: unless-stopped
+    expose:
+      - 9183
+    ports:
+      - 9183:9183
+
+# docker run
+docker run \
+  -itd \
+  --name prom_openstack_exporter \
+  -p 9183:9183 \
+  --env-file=$(pwd)/admin.novarc.example \
+  --restart=unless-stopped \
+  moghaddas/prom-openstack-exporter:latest
+
+```
+
 # Configuration
 
 Configuration options are documented in prometheus-openstack-exporter.yaml shipped with this project
@@ -87,3 +116,25 @@ Swift stats are included mainly because they are trivial to retrieve. If and whe
 
 We are aware that Prometheus best practise is to avoid caching. Unfortunately queries we need to run are very heavy and in bigger clouds can take minutes to execute. This is problematic not only because of delays but also because multiple servers scraping the exporter could have negative impact on the cloud performance
 
+## How are Swift account metrics obtained?
+
+Fairly simply!  Given a copy of the Swift rings (in fact, we just need
+account.ring.gz) we can load this up and then ask it where particular
+accounts are located in the cluster.  We assume that Swift is
+replicating properly, pick a node at random, and ask it for the
+account's statistics with an HTTP HEAD request, which it returns.
+
+## How hard would it be to export Swift usage by container?
+
+Sending a GET request to the account URL yields a list of containers
+(probably paginated, so watch out for that!).  In order to write a
+container-exporter, one could add some code to fetch a list of
+containers from the account server, load up the container ring, and
+then use container_ring.get_nodes(account, container) and HTTP HEAD on
+one of the resulting nodes to get a containers' statistics, although
+without some caching cleverness this will scale poorly.
+
+# Known Issues
+## EOFError by pickle.py
+
+You should wait. It needs dump file to generate metrics

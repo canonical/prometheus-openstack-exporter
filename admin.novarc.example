@@ -1,0 +1,27 @@
+OS_PROJECT_DOMAIN_NAME=Default
+OS_USER_DOMAIN_NAME=Default
+OS_PROJECT_NAME=admin
+OS_TENANT_NAME=admin
+OS_USERNAME=admin
+OS_PASSWORD=XXXXXXXXXX
+OS_AUTH_URL=http://XX.XX.XX.XX:35357/v3
+OS_INTERFACE=internal
+OS_IDENTITY_API_VERSION=3
+OS_REGION_NAME=mycloud
+
+#listenPort=9183
+#cacheRefreshInterval=300
+#vcpuRatio=1.0
+#ramRatio=1.0
+#diskRatio=1.0
+#enabledCollectors=cinder neutron nova
+#schedulableInstanceRam=4096
+#schedulableInstanceVcpu=2
+#schedulableInstanceDisk=20
+#useNovaVolumes=True
+#swiftHosts=host1.example.com host2.example.com
+#keystoneTenantsMap="firstname,1234567890 secondname,0987654321"
+#resellerPrefix=AUTH_
+#ringPath=/etc/swift
+#hashPathPrefix=
+#hashPathSuffix=
