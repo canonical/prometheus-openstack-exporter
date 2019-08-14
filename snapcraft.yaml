@@ -1,5 +1,5 @@
 name: prometheus-openstack-exporter
-version: 0.1.1
+version: 0.1.2
 summary: Exposes high level OpenStack metrics to Prometheus.
 description: |
   Exposes high level OpenStack metrics to Prometheus
