@@ -9,6 +9,7 @@ cloud: mycloud
 openstack_allocation_ratio_vcpu: 2.5
 openstack_allocation_ratio_ram: 1.1
 openstack_allocation_ratio_disk: 1.0
+log_level: INFO
 
 # Configure the enabled collectors here.  Note that the Swift account
 # collector in particular has special requirements.
