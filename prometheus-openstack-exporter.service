@@ -1,12 +1,15 @@
 [Unit]
 Description=prometheus-openstack-exporter
 After=network.target
+StartLimitInterval=0
 
 [Service]
 EnvironmentFile=/etc/default/prometheus-openstack-exporter
 #EnvironmentFile=/etc/prometheus-openstack-exporter/admin.novarc
 ExecStart=/bin/sh -c '. /etc/prometheus-openstack-exporter/admin.novarc; exec /opt/prometheus-openstack-exporter/prometheus-openstack-exporter $CONFIG_FILE'
 KillMode=process
+Restart=always
+RestartSec=1
 
 [Install]
 WantedBy=multi-user.target
