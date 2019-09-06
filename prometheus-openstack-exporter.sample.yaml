@@ -9,6 +9,7 @@ cloud: VAR_CLOUD # cloud=${OS_REGION_NAME:-mycloud}
 openstack_allocation_ratio_vcpu: VAR_VCPU_RATIO # vcpuRatio=1.0
 openstack_allocation_ratio_ram: VAR_RAM_RATIO # ramRatio=1.0
 openstack_allocation_ratio_disk: VAR_DISK_RATIO # diskRatio=1.0
+log_level: VAR_LOG_LEVEL # logLevel=INFO
 
 # Configure the enabled collectors here.  Note that the Swift account
 # collector in particular has special requirements.
