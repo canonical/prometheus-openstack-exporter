@@ -3,6 +3,7 @@
 #
 
 listen_port: VAR_LISTEN_PORT # listenPort=9183
+log_level: VAR_LOG_LEVEL # logLevel=INFO
 cache_refresh_interval: VAR_CACHE_REFRESH_INTERVAL # cacheRefreshInterval=300 In seconds
 cache_file: VAR_CACHE_FILE # cacheFileName=$(mktemp -p /dev/shm/)
 cloud: VAR_CLOUD # cloud=${OS_REGION_NAME:-mycloud}

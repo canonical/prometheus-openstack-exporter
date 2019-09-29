@@ -3,6 +3,7 @@
 prometheusDir='/etc/prometheus'
 configFile=${configFile:-"${prometheusDir}/prometheus-openstack-exporter.yaml"}
 listenPort=${listenPort:-9183}
+logLevel=${logLevel:-INFO}
 cacheRefreshInterval=${cacheRefreshInterval:-300}
 cacheFileName=${cacheFileName:-"$(mktemp -p /dev/shm/)"}
 cloud=${OS_REGION_NAME:-mycloud}
@@ -26,6 +27,7 @@ if [ ! -e "${configFile}" ]; then
     cp prometheus-openstack-exporter.sample.yaml ${configFile}
     
     sed -i "s|VAR_LISTEN_PORT|${listenPort}|g" 					${configFile}
+    sed -i "s|VAR_LOG_LEVEL|${logLevel}|g"		 			${configFile}
     sed -i "s|VAR_CACHE_REFRESH_INTERVAL|${cacheRefreshInterval}|g" 		${configFile}
     sed -i "s|VAR_CACHE_FILE|${cacheFileName}|g" 				${configFile}
     sed -i "s|VAR_CLOUD|${cloud}|g" 						${configFile}

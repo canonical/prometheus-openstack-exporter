@@ -10,6 +10,7 @@ OS_IDENTITY_API_VERSION=3
 OS_REGION_NAME=mycloud
 
 #listenPort=9183
+#logLevel=INFO
 #cacheRefreshInterval=300
 #vcpuRatio=1.0
 #ramRatio=1.0
