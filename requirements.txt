@@ -2,4 +2,5 @@ flake8
 mock
 prometheus-client
 python-neutronclient
+python-novaclient
 swift
