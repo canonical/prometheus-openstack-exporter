@@ -15,19 +15,20 @@ setup(
     keywords=["prometheus", "openstack", "exporter"],
     url="https://github.com/CanonicalLtd/prometheus-openstack-exporter",
     scripts=["prometheus-openstack-exporter"],
-    install_requires=["prometheus_client",
-                      "python-keystoneclient<=3.10.0",
-                      "python-novaclient==6.0.0",
-                      "python-neutronclient<=6.1.0",
-                      "python-cinderclient",
-                      "netaddr",
-                      "swift"
+    install_requires=[
+        "prometheus_client",
+        "python-keystoneclient<=3.10.0",
+        "python-novaclient==6.0.0",
+        "python-neutronclient<=6.1.0",
+        "python-cinderclient",
+        "netaddr",
+        "swift"
     ],
     long_description=read('README.md'),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Topic :: System :: Networking :: Monitoring",
         "License :: OSI Approved :: "
-            "GNU General Public License v3 or later (GPLv3+)",
+        "GNU General Public License v3 or later (GPLv3+)",
     ],
 )
