@@ -119,10 +119,13 @@ def get_clients():
         sess_domain = session.Session(auth=auth_domain, verify=verify)
         sess_admin = session.Session(auth=auth_admin, verify=verify)
 
-        keystone = client.Client(session=sess_domain)
-        nova = nova_client.Client(2, session=sess_admin)
-        neutron = neutron_client.Client(session=sess_admin)
-        cinder = cinder_client.Client(session=sess_admin)
+        interface = env.get('OS_INTERFACE', 'admin')
+
+        # Keysone has not switched from interface to endpoint_type yet
+        keystone = client.Client(session=sess_domain, interface=interface)
+        nova = nova_client.Client(2, session=sess_admin, endpoint_type=interface)
+        neutron = neutron_client.Client(session=sess_admin, endpoint_type=interface)
+        cinder = cinder_client.Client(session=sess_admin, endpoint_type=interface)
 
     else:
         raise(ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
