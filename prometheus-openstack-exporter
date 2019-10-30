@@ -121,7 +121,7 @@ def get_clients():
 
         interface = env.get('OS_INTERFACE', 'admin')
 
-        # Keysone has not switched from interface to endpoint_type yet
+        # Keystone has not switched from interface to endpoint_type yet
         keystone = client.Client(session=sess_domain, interface=interface)
         nova = nova_client.Client(2, session=sess_admin, endpoint_type=interface)
         neutron = neutron_client.Client(session=sess_admin, endpoint_type=interface)
