@@ -116,9 +116,10 @@ def get_clients():
             verify = True
         sess_domain = session.Session(auth=auth_domain, verify=verify)
         sess_admin = session.Session(auth=auth_admin, verify=verify)
+        sess_endpoint_type = get_endpoint_type()
 
         keystone = client.Client(session=sess_domain, endpoint_type=sess_endpoint_type)
-        nova = nova_client.Client(2.1, session=sess_admin, endpoint_type=sess_endpoint_type)
+        nova = nova_client.Client(2, session=sess_admin, endpoint_type=sess_endpoint_type)
         neutron = neutron_client.Client(session=sess_admin, endpoint_type=sess_endpoint_type)
         cinder = cinder_client.Client(session=sess_admin, endpoint_type=sess_endpoint_type)
 
