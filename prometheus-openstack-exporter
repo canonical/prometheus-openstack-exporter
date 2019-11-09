@@ -55,6 +55,11 @@ def get_creds_dict(*names):
             for name in names if 'OS_%s' % name.upper() in env}
 
 
+def get_endpoint_type():
+    """Get endpoint_type from envvars"""
+    return env['OS_INTERFACE']
+
+
 def get_creds_list(*names):
     """Get list with cred envvars, error if not set"""
     return [env['OS_%s' % name.upper()] for name in names]
@@ -112,10 +117,10 @@ def get_clients():
         sess_domain = session.Session(auth=auth_domain, verify=verify)
         sess_admin = session.Session(auth=auth_admin, verify=verify)
 
-        keystone = client.Client(session=sess_domain)
-        nova = nova_client.Client(2, session=sess_admin)
-        neutron = neutron_client.Client(session=sess_admin)
-        cinder = cinder_client.Client(session=sess_admin)
+        keystone = client.Client(session=sess_domain, endpoint_type=sess_endpoint_type)
+        nova = nova_client.Client(2.1, session=sess_admin, endpoint_type=sess_endpoint_type)
+        neutron = neutron_client.Client(session=sess_admin, endpoint_type=sess_endpoint_type)
+        cinder = cinder_client.Client(session=sess_admin, endpoint_type=sess_endpoint_type)
 
     else:
         raise(ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
