@@ -1,3 +1,4 @@
+configparser==3.5
 flake8
 mock
 prometheus-client
