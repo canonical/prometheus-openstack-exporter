@@ -22,7 +22,7 @@ setup(
         "python-neutronclient<=6.1.0",
         "python-cinderclient",
         "netaddr",
-        "swift"
+        "swift",
     ],
     long_description=read('README.md'),
     classifiers=[

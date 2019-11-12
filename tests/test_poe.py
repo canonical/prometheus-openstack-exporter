@@ -51,11 +51,11 @@ class TestPrometheusOpenstackExporter(unittest.TestCase):
 
         expected = [
             mock.call(search_opts={'marker': '', 'limit': '100', 'status': 'ACTIVE', 'all_tenants': '1'}),
-            mock.call(search_opts={'marker': '', 'limit': '100', 'status': 'SHUTOFF', 'all_tenants': '1'}),
             mock.call(search_opts={'marker': '', 'limit': '100', 'status': 'ERROR', 'all_tenants': '1'}),
-            mock.call(search_opts={'marker': '', 'limit': '100', 'status': 'VERIFY_RESIZE', 'all_tenants': '1'}),
             mock.call(search_opts={'marker': '', 'limit': '100', 'status': 'SHELVED_OFFLOADED', 'all_tenants': '1'}),
+            mock.call(search_opts={'marker': '', 'limit': '100', 'status': 'SHUTOFF', 'all_tenants': '1'}),
             mock.call(search_opts={'marker': '', 'limit': '100', 'status': 'SUSPENDED', 'all_tenants': '1'}),
+            mock.call(search_opts={'marker': '', 'limit': '100', 'status': 'VERIFY_RESIZE', 'all_tenants': '1'}),
         ]
         nova.servers.list.assert_has_calls(expected, any_order=True)
 
