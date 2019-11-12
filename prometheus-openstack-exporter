@@ -170,15 +170,19 @@ class DataGatherer(Thread):
         info['aggregates'] = [x.to_dict() for x in nova.aggregates.list()]
 
         info['instances'] = []
-        marker = ''
-        while True:
-            search_opts = {'all_tenants': '1', 'limit': '100', 'marker': marker}
-            new_instances = [x._info for x in nova.servers.list(search_opts=search_opts)]
-            if new_instances:
-                marker = new_instances[-1]['id']
-                info['instances'].extend(new_instances)
-            else:
-                break
+        # Exclude instances in 'BUILD' state as they cannot be used as markers:
+        #   https://github.com/CanonicalLtd/prometheus-openstack-exporter/issues/90
+        valid_statuses = ['ACTIVE', 'ERROR', 'SHELVED_OFFLOADED', 'SHUTOFF', 'SUSPENDED', 'VERIFY_RESIZE']
+        for status in valid_statuses:
+            marker = ''
+            while True:
+                search_opts = {'all_tenants': '1', 'limit': '100', 'marker': marker, 'status': status}
+                new_instances = [x._info for x in nova.servers.list(search_opts=search_opts)]
+                if new_instances:
+                    marker = new_instances[-1]['id']
+                    info['instances'].extend(new_instances)
+                else:
+                    break
 
         info['volume_quotas'] = {}
         info['nova_quotas'] = {}
