@@ -9,5 +9,4 @@ __pycache__
 debian/files
 parts
 prime
-snap
 stage
