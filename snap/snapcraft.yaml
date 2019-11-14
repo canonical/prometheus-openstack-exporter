@@ -1,5 +1,6 @@
 name: prometheus-openstack-exporter
-version: 0.1.2
+base: core
+version: git
 summary: Exposes high level OpenStack metrics to Prometheus.
 description: |
   Exposes high level OpenStack metrics to Prometheus
