@@ -100,6 +100,7 @@ def get_clients():
         # are needed, it worked for me (jjo) having:
         #  OS_USERNAME OS_PASSWORD OS_USER_DOMAIN_NAME OS_AUTH_URL
         #  OS_PROJECT_DOMAIN_NAME OS_PROJECT_DOMAIN_ID OS_PROJECT_ID OS_DOMAIN_NAME
+        #  OS_REGION_NAME
         # Keystone needs domain creds for e.g. project list
 
         # project and project_domain are needed for listing projects
@@ -110,6 +111,9 @@ def get_clients():
         ks_creds_admin = get_creds_dict(
             "username", "password", "user_domain_name", "auth_url",
             "project_domain_name", "project_name", "project_domain_id", "project_id")
+        # Required for region_name parameter on nova, neutron and cinder clients.
+        ks_creds_region = get_creds_dict("region_name")
+
         auth_domain = v3.Password(**ks_creds_domain)
         auth_admin = v3.Password(**ks_creds_admin)
         # Need to pass in cacert separately
@@ -120,9 +124,9 @@ def get_clients():
         sess_admin = session.Session(auth=auth_admin, verify=verify)
 
         keystone = client.Client(session=sess_domain)
-        nova = nova_client.Client(2, session=sess_admin)
-        neutron = neutron_client.Client(session=sess_admin)
-        cinder = cinder_client.Client(session=sess_admin)
+        nova = nova_client.Client(2, session=sess_admin, region_name=ks_creds_region['region_name'])
+        neutron = neutron_client.Client(session=sess_admin, region_name=ks_creds_region['region_name'])
+        cinder = cinder_client.Client(session=sess_admin, region_name=ks_creds_region['region_name'])
 
     else:
         raise(ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
