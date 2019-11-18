@@ -792,10 +792,10 @@ if __name__ == '__main__':
     else:
         log.addHandler(logging.StreamHandler())
     config = yaml.safe_load(args.config_file.read())
-    numeric_log_level = getattr(logging, config.get('log_level').upper(), None)
+    numeric_log_level = getattr(logging, config.get('log_level', 'INFO').upper(), None)
     if not isinstance(numeric_log_level, int):
         raise ValueError('Invalid log level: %s' % config.get('log_level'))
-    log.setLevel(numeric_log_level) 
+    log.setLevel(numeric_log_level)
     data_gatherer = None
     if data_gatherer_needed(config):
         data_gatherer = DataGatherer()
