@@ -445,7 +445,7 @@ class Nova():
         missing_flavors = False
         instances = Gauge('nova_instances',
                           'Nova instances metrics',
-                          ['cloud', 'tenant', 'instance_state'], registry=self.registry)
+                          ['cloud', 'name', 'tenant', 'instance_state'], registry=self.registry)
         res_ram = Gauge('nova_resources_ram_mbs',
                         'Nova RAM usage metric',
                         ['cloud', 'tenant'], registry=self.registry)
@@ -460,7 +460,7 @@ class Nova():
                 tenant = self.tenant_map[i['tenant_id']]
             else:
                 tenant = 'orphaned'
-            instances.labels(config['cloud'], tenant, i['status']).inc()
+            instances.labels(config['cloud'], i['name'], tenant, i['status']).inc()
 
             if i['flavor']['id'] in self.flavor_map:
                 flavor = self.flavor_map[i['flavor']['id']]
