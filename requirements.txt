@@ -4,4 +4,5 @@ mock
 prometheus-client
 python-neutronclient
 python-novaclient
+python-gnocchiclient
 swift

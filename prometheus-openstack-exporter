@@ -91,6 +91,7 @@ def get_clients():
         nova = nova_client.Client(*nova_creds, cacert=cacert)
         neutron = neutron_client.Client(**ks_creds)
         cinder = cinder_client.Client(*cinder_creds, cacert=cacert)
+        gnocchi = gnocchi_client.Client(session=sess_admin)
 
     elif ks_version == 3:
         from keystoneauth1.identity import v3
@@ -126,12 +127,12 @@ def get_clients():
         nova = nova_client.Client(2, session=sess_admin, endpoint_type=interface)
         neutron = neutron_client.Client(session=sess_admin, endpoint_type=interface)
         cinder = cinder_client.Client(session=sess_admin, endpoint_type=interface)
+        gnocchi = gnocchi_client.Client(session=sess_admin)
 
     else:
         raise(ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
     log.debug("Client setup done, keystone ver {}".format(ks_version))
-    return (keystone, nova, neutron, cinder)
-
+    return (keystone, nova, neutron, cinder, gnocchi)
 
 class DataGatherer(Thread):
     """Periodically retrieve data from openstack in a separate thread,
@@ -163,6 +164,22 @@ class DataGatherer(Thread):
         info['ports'] = neutron.list_ports()['ports']
         info['routers'] = neutron.list_routers()['routers']
         info['subnets'] = neutron.list_subnets()['subnets']
+        return info
+
+    def _get_gnocchi_info(self, gnocchi, stop, start):
+        info = {}
+        info["instance"] = {}
+        info["instance_disk"] = {}
+        for r in gnocchi.resource.list(resource_type='instance'):
+            info["instance"][r['display_name']] = {}
+            for m in r['metrics']:
+                meter = m.items()[0] # convert dict to a tuple list of format: [('name': 'id')]
+                info["instance"][r['display_name']][meter[0]] = [gnocchi.metric.get_measures(meter[1],start=start,stop=stop)]
+        for r in gnocchi.resource.list(resource_type='instance_disk'):
+            info["instance_disk"][r['id']] = {}
+            for m in r['metrics']:
+                meter = m.items()[0] # convert dict to a tuple list of format: [('name': 'id')]
+                info["instance_disk"][r['id']][meter[0]] = [gnocchi.metric.get_measures(meter[1],start=start,stop=stop)]
         return info
 
     def _get_nova_info(self, nova, cinder, prodstack):
@@ -203,14 +220,16 @@ class DataGatherer(Thread):
     def run(self):
         log.debug("Starting data gather thread")
         prodstack = {}
+        gnocchi_start_time = time()
         while True:
             start_time = time()
             try:
-                keystone, nova, neutron, cinder = get_clients()
+                keystone, nova, neutron, cinder, gnocchi = get_clients()
 
                 prodstack.update(self._get_keystone_info(keystone))
                 prodstack.update(self._get_neutron_info(neutron))
                 prodstack.update(self._get_nova_info(nova, cinder, prodstack))
+                prodstack.update(self._get_gnocchi_info(gnocchi, stop=start_time, start=gnocchi_start_time))
 
             except Exception:
                 # Ignore failures, we will try again after refresh_interval.
@@ -223,6 +242,7 @@ class DataGatherer(Thread):
                 rename(self.cache_file + '.new', self.cache_file)
                 log.debug("Done dumping stats to {}".format(self.cache_file))
             self.duration = time() - start_time
+            gnocchi_start_time = start_time
             sleep(self.refresh_interval)
 
     def get_stats(self):
@@ -240,6 +260,39 @@ class DataGatherer(Thread):
         duration.labels(*label_values).set(self.duration)
         return generate_latest(registry)
 
+class Gnocchi():
+    def __init__(self):
+        self.registry = CollectorRegistry()
+        self.prodstack = {}
+        with open(config['cache_file'], 'rb') as f:
+            self.prodstack = pickle.load(f)[0]
+
+    def get_instance_memory(self):
+        for instance in self.prodstack['instance']:
+            i = instance.items()[0]
+            try:
+                # Accessing data on tuple
+                total_mem = float(i[1]['memory'])
+                mem = float(i[1]['memory.usage'])
+            except KeyError:
+                mem = 0.0
+                total_mem = 1.0
+            try:
+                tenant = i[1]['tenant_id']
+            except KeyError:
+                tenant = 'Unknown_tenant'
+            key = (config['cloud'], tenant, i[0], mem / total_mem)
+        return ips
+
+    def get_stats(self):
+        labels = ['cloud', 'tenant_id', 'instance_name', 'memory_consumption']
+        mem = self.get_instance_memory()
+        metrics = Gauge('instance_stats',
+                        'Overall stats for instances',
+                        labels, registry=self.registry)
+        for k, v in mem.items():
+            metrics.labels(*k).set(v)
+        return generate_latest(self.registry)
 
 class Neutron():
     def __init__(self):

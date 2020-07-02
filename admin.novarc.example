@@ -8,6 +8,8 @@ OS_AUTH_URL=http://XX.XX.XX.XX:35357/v3
 OS_INTERFACE=internal
 OS_IDENTITY_API_VERSION=3
 OS_REGION_NAME=mycloud
+# For gnocchi: LP #1666617
+OS_AUTH_TYPE=password
 
 #logLevel=INFO
 #listenPort=9183

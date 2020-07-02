@@ -17,6 +17,7 @@ enabled_collectors:
   - cinder
   - neutron
   - nova
+  - gnocchi
   - swift
 #  - swift-account-usage
 
