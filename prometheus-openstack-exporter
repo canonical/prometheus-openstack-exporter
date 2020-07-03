@@ -279,7 +279,7 @@ class Gnocchi():
                         c = self.prodstack['instance'][instance]['memory.usage'][0][i][0].__str__()
                         mem = float(self.prodstack['instance'][instance]['memory.usage'][0][i][2])
             except KeyError as e:
-                log.critical("KeyError while getting mem stats {}".print(e))
+                log.critical("KeyError while getting mem stats {}".format(e))
                 mem = 0.0
             try:
                 tenant = self.prodstack['instance'][instance]['tenant_id']
@@ -300,7 +300,7 @@ class Gnocchi():
                         c = self.prodstack['instance'][instance]['cpu'][0][i][0].__str__()
                         cpu = float(self.prodstack['instance'][instance]['cpu'][0][i][2])
             except KeyError:
-                log.critical("KeyError while getting cpu stats {}".print(e))
+                log.critical("KeyError while getting cpu stats {}".format(e))
                 cpu = 0.0
             try:
                 tenant = self.prodstack['instance'][instance]['tenant_id']
