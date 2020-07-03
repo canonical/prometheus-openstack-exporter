@@ -183,8 +183,6 @@ class DataGatherer(Thread):
             # instance_disk returns <vm-uuid>-<disk-name> as original resource id
             # disk-name can be recovered on r['name'] use instance_id instead
             display_name = uuid_to_name[ r["instance_id"] ]
-            info["instance"][display_name] = {}
-            info["instance"][display_name]["tenant_id"] = r["project_id"]
             for m in r['metrics']:
                 info["instance"][display_name][m] = [gnocchi.metric.get_measures(r['metrics'][m],start=start,stop=stop)]
         for r in gnocchi.resource.list(resource_type='instance_network_interface'):
@@ -192,8 +190,6 @@ class DataGatherer(Thread):
             # instance_disk returns <libvirt-id>-<vm-uuid> as original resource id
             # disk-name can be recovered on r['name'] use instance_id instead
             display_name = uuid_to_name[ r["instance_id"] ]
-            info["instance"][display_name] = {}
-            info["instance"][display_name]["tenant_id"] = r["project_id"]
             for m in r['metrics']:
                 info["instance"][display_name][m] = [gnocchi.metric.get_measures(r['metrics'][m],start=start,stop=stop)]
         return info
@@ -287,12 +283,13 @@ class Gnocchi():
         mem_list = {}
         for instance in self.prodstack['instance']:
             try:
-                c = self.prodstack['instance'][instance]['memory.usage'][0][0][0].__str__()
-                for i in range(len(self.prodstack['instance'][instance]['memory.usage'][0])):
+                mem_usage = self.prodstack['instance'][instance]['memory.usage'][0]
+                c = mem_usage[0][0].__str__()
+                for i in range(len(mem_usage)):
                     # looking for the most recent sample
-                    if c < self.prodstack['instance'][instance]['memory.usage'][0][i][0].__str__():
-                        c = self.prodstack['instance'][instance]['memory.usage'][0][i][0].__str__()
-                        mem = float(self.prodstack['instance'][instance]['memory.usage'][0][i][2])
+                    if c < mem_usage[i][0].__str__():
+                        c = mem_usage[i][0].__str__()
+                        mem = float(mem_usage[i][2])
             except KeyError as e:
                 log.critical("KeyError while getting mem stats {}".format(e))
                 mem = 0.0
@@ -308,12 +305,13 @@ class Gnocchi():
         cpu_list = {}
         for instance in self.prodstack['instance']:
             try:
-                c = self.prodstack['instance'][instance]['cpu'][0][0][0].__str__()
-                for i in range(len(self.prodstack['instance'][instance]['cpu'][0])):
+                cpu_time = self.prodstack['instance'][instance]['cpu'][0]
+                c = cpu_time[0][0].__str__()
+                for i in range(len(cpu_time)):
                     # looking for the most recent sample
-                    if c < self.prodstack['instance'][instance]['cpu'][0][i][0].__str__():
-                        c = self.prodstack['instance'][instance]['cpu'][0][i][0].__str__()
-                        cpu = float(self.prodstack['instance'][instance]['cpu'][0][i][2])
+                    if c < cpu_time[i][0].__str__():
+                        c = cpu_time[i][0].__str__()
+                        cpu = float(cpu_time[i][2])
             except KeyError as e:
                 log.critical("KeyError while getting cpu stats {}".format(e))
                 cpu = 0.0
@@ -325,6 +323,70 @@ class Gnocchi():
             cpu_list[key] = cpu
         return cpu_list
 
+    def _instance_net_read_bytes(self, labels):
+        read_bytes = {}
+        for instance in self.prodstack['instance']:
+            try:
+                incoming_bytes = self.prodstack['instance'][instance]['network.incoming.bytes'][0]
+                c = incoming_bytes[0][0].__str__()
+                for i in range(len(incoming_bytes)):
+                    # looking for the most recent sample
+                    if c < incoming_bytes[i][0].__str__():
+                        c = incoming_bytes[i][0].__str__()
+                        net = float(incoming_bytes[i][2])
+            except KeyError as e:
+                log.critical("KeyError while getting net read bytes stats {}".format(e))
+                net = 0.0
+            try:
+                tenant = self.prodstack['instance'][instance]['tenant_id']
+            except KeyError:
+                tenant = 'Unknown_tenant'
+            key = (config['cloud'], tenant, instance)
+            read_bytes[key] = net
+        return read_bytes
+
+    def _instance_net_write_bytes(self, labels):
+        write_bytes = {}
+        for instance in self.prodstack['instance']:
+            try:
+                outgoing_bytes = self.prodstack['instance'][instance]['network.outgoing.bytes'][0]
+                c = outgoing_bytes[0][0].__str__()
+                for i in range(len(outgoing_bytes)):
+                    # looking for the most recent sample
+                    if c < outgoing_bytes[i][0].__str__():
+                        c = outgoing_bytes[i][0].__str__()
+                        net = float(outgoing_bytes[i][2])
+            except KeyError as e:
+                log.critical("KeyError while getting net write bytes stats {}".format(e))
+                net = 0.0
+            try:
+                tenant = self.prodstack['instance'][instance]['tenant_id']
+            except KeyError:
+                tenant = 'Unknown_tenant'
+            key = (config['cloud'], tenant, instance)
+            write_bytes[key] = net
+        return write_bytes
+
+    def get_write_bytes(self):
+        labels = ['cloud', 'tenant_id', 'instance_name']
+        cpu = self._instance_net_write_bytes(labels)
+        metrics = Gauge('gnocchi_outgoing_bytes_instance',
+                        'Outgoing bytes per instance',
+                        labels, registry=self.registry)
+        for k, v in cpu.items():
+            metrics.labels(*k).set(v)
+        return generate_latest(self.registry)
+
+    def get_read_bytes(self):
+        labels = ['cloud', 'tenant_id', 'instance_name']
+        cpu = self._instance_net_read_bytes(labels)
+        metrics = Gauge('gnocchi_incoming_bytes_instance',
+                        'Incoming bytes per instance',
+                        labels, registry=self.registry)
+        for k, v in cpu.items():
+            metrics.labels(*k).set(v)
+        return generate_latest(self.registry)
+
     def get_cpu_time(self):
         labels = ['cloud', 'tenant_id', 'instance_name']
         cpu = self._instance_cpu_time(labels)
@@ -334,7 +396,6 @@ class Gnocchi():
         for k, v in cpu.items():
             metrics.labels(*k).set(v)
         return generate_latest(self.registry)
-
 
     def get_stats(self):
         labels = ['cloud', 'tenant_id', 'instance_name']
