@@ -171,16 +171,31 @@ class DataGatherer(Thread):
     def _get_gnocchi_info(self, gnocchi, stop, start):
         info = {}
         info["instance"] = {}
-        info["instance_disk"] = {}
+        uuid_to_name = {}
         for r in gnocchi.resource.list(resource_type='instance'):
             info["instance"][r['display_name']] = {}
             info["instance"][r['display_name']]["tenant_id"] = r["project_id"]
+            uuid_to_name[r["original_resource_id"]] = r['display_name']
             for m in r['metrics']:
                 info["instance"][r['display_name']][m] = [gnocchi.metric.get_measures(r['metrics'][m],start=start,stop=stop)]
         for r in gnocchi.resource.list(resource_type='instance_disk'):
-            info["instance_disk"][r['id']] = {}
+            log.critical("instance_disk {}".format(r))
+            # instance_disk returns <vm-uuid>-<disk-name> as original resource id
+            # disk-name can be recovered on r['name'] use instance_id instead
+            display_name = uuid_to_name[ r["instance_id"] ]
+            info["instance"][display_name] = {}
+            info["instance"][display_name]["tenant_id"] = r["project_id"]
             for m in r['metrics']:
-                info["instance_disk"][r['id']][m] = [gnocchi.metric.get_measures(r['metrics'][m],start=start,stop=stop)]
+                info["instance"][display_name][m] = [gnocchi.metric.get_measures(r['metrics'][m],start=start,stop=stop)]
+        for r in gnocchi.resource.list(resource_type='instance_network_interface'):
+            log.critical("instance_network {}".format(r))
+            # instance_disk returns <libvirt-id>-<vm-uuid> as original resource id
+            # disk-name can be recovered on r['name'] use instance_id instead
+            display_name = uuid_to_name[ r["instance_id"] ]
+            info["instance"][display_name] = {}
+            info["instance"][display_name]["tenant_id"] = r["project_id"]
+            for m in r['metrics']:
+                info["instance"][display_name][m] = [gnocchi.metric.get_measures(r['metrics'][m],start=start,stop=stop)]
         return info
 
     def _get_nova_info(self, nova, cinder, prodstack):
@@ -299,7 +314,7 @@ class Gnocchi():
                     if c < self.prodstack['instance'][instance]['cpu'][0][i][0].__str__():
                         c = self.prodstack['instance'][instance]['cpu'][0][i][0].__str__()
                         cpu = float(self.prodstack['instance'][instance]['cpu'][0][i][2])
-            except KeyError:
+            except KeyError as e:
                 log.critical("KeyError while getting cpu stats {}".format(e))
                 cpu = 0.0
             try:
