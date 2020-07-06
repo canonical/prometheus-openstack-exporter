@@ -397,6 +397,17 @@ class Gnocchi():
             metrics.labels(*k).set(v)
         return generate_latest(self.registry)
 
+
+    def _generate_gauge_metrics_template(self, labels,
+                                         gauge_name, gauge_doc,
+                                         reg, method_to_call):
+        result = method_to_call(labels)
+        metrics = Gauge(gauge_name, gauge_doc,
+                        labels, registry=reg)
+        for k,v in result.items():
+            metrics.labels(*k).set(v)
+        return reg
+
     def get_stats(self):
         labels = ['cloud', 'tenant_id', 'instance_name']
         mem = self.get_instance_memory(labels)
@@ -406,6 +417,14 @@ class Gnocchi():
         for k, v in mem.items():
             metrics.labels(*k).set(v)
         self.get_cpu_time()
+        self._generate_gauge_metrics_template(labels,
+            'gnocchi_outgoing_bytes_instance',
+            'Outgoing bytes per instance',
+            self.registry, self._instance_net_write_bytes)
+        self._generate_gauge_metrics_template(labels,
+            'gnocchi_incoming_bytes_instance',
+            'Incoming bytes per instance',
+            self.registry, self._instance_net_read_bytes)
         return generate_latest(self.registry)
 
 class Neutron():
