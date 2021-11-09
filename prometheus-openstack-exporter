@@ -271,7 +271,7 @@ class Neutron():
                 tenant = self.tenant_map[ip['tenant_id']]
             except KeyError:
                 tenant = 'Unknown tenant ({})'.format(ip['tenant_id'])
-            key = (config['cloud'], subnet, tenant, 'floatingip', ip['status'])
+            key = (config['cloud'], subnet, tenant, ip['tenant_id'], 'floatingip', ip['status'])
             if key in ips:
                 ips[key] += 1
             else:
@@ -289,7 +289,7 @@ class Neutron():
                 except KeyError:
                     tenant = 'Unknown tenant ({})'.format(r['tenant_id'])
                 subnet = self.network_map[r['external_gateway_info']['network_id']]
-                key = (config['cloud'], subnet, tenant, 'routerip', r['status'])
+                key = (config['cloud'], subnet, tenant, r['tenant_id'], 'routerip', r['status'])
                 if key in ips:
                     ips[key] += 1
                 else:
@@ -314,7 +314,7 @@ class Neutron():
             net_size.labels(*label_values).set(size)
 
     def get_stats(self):
-        labels = ['cloud', 'subnet_name', 'tenant', 'ip_type', 'ip_status']
+        labels = ['cloud', 'subnet_name', 'tenant', 'tenant_id', 'ip_type', 'ip_status']
         ips = self.get_floating_ips()
         ips.update(self.get_router_ips())
         metrics = Gauge('neutron_public_ip_usage',
@@ -338,10 +338,10 @@ class Cinder():
     def gen_volume_quota_stats(self):
         gbs = Gauge('cinder_quota_volume_disk_gigabytes',
                     'Cinder volume metric (GB)',
-                    ['cloud', 'tenant', 'type'], registry=self.registry)
+                    ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
         vol = Gauge('cinder_quota_volume_disks',
                     'Cinder volume metric (number of volumes)',
-                    ['cloud', 'tenant', 'type'], registry=self.registry)
+                    ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
         if not self.use_nova_volumes:
             return
         for t, q in self.prodstack['volume_quotas'].items():
@@ -350,8 +350,8 @@ class Cinder():
             else:
                 tenant = 'orphaned'
             for tt in ['limit', 'in_use', 'reserved']:
-                gbs.labels(config['cloud'], tenant, tt).inc(q['gigabytes'][tt])
-                vol.labels(config['cloud'], tenant, tt).inc(q['volumes'][tt])
+                gbs.labels(config['cloud'], tenant, t, tt).inc(q['gigabytes'][tt])
+                vol.labels(config['cloud'], tenant, t, tt).inc(q['volumes'][tt])
 
     def get_stats(self):
         self.gen_volume_quota_stats()
@@ -456,28 +456,28 @@ class Nova():
         missing_flavors = False
         instances = Gauge('nova_instances',
                           'Nova instances metrics',
-                          ['cloud', 'name', 'tenant', 'instance_state'], registry=self.registry)
+                          ['cloud', 'name', 'tenant', 'tenant_id', 'instance_state'], registry=self.registry)
         res_ram = Gauge('nova_resources_ram_mbs',
                         'Nova RAM usage metric',
-                        ['cloud', 'tenant'], registry=self.registry)
+                        ['cloud', 'tenant', 'tenant_id'], registry=self.registry)
         res_vcpus = Gauge('nova_resources_vcpus',
                           'Nova vCPU usage metric',
-                          ['cloud', 'tenant'], registry=self.registry)
+                          ['cloud', 'tenant', 'tenant_id'], registry=self.registry)
         res_disk = Gauge('nova_resources_disk_gbs',
                          'Nova disk usage metric',
-                         ['cloud', 'tenant'], registry=self.registry)
+                         ['cloud', 'tenant', 'tenant_id'], registry=self.registry)
         for i in self.prodstack['instances']:
             if i['tenant_id'] in self.tenant_map:
                 tenant = self.tenant_map[i['tenant_id']]
             else:
                 tenant = 'orphaned'
-            instances.labels(config['cloud'], i['name'], tenant, i['status']).inc()
+            instances.labels(config['cloud'], i['name'], tenant, i['tenant_id'], i['status']).inc()
 
             if i['flavor']['id'] in self.flavor_map:
                 flavor = self.flavor_map[i['flavor']['id']]
-                res_ram.labels(config['cloud'], tenant).inc(flavor['ram'])
-                res_vcpus.labels(config['cloud'], tenant).inc(flavor['vcpus'])
-                res_disk.labels(config['cloud'], tenant).inc(flavor['disk'])
+                res_ram.labels(config['cloud'], tenant, i['tenant_id']).inc(flavor['ram'])
+                res_vcpus.labels(config['cloud'], tenant, i['tenant_id']).inc(flavor['vcpus'])
+                res_disk.labels(config['cloud'], tenant, i['tenant_id']).inc(flavor['disk'])
             else:
                 missing_flavors = True
 
@@ -507,16 +507,16 @@ class Nova():
     def gen_quota_stats(self):
         cores = Gauge('nova_quota_cores',
                       'Nova cores metric',
-                      ['cloud', 'tenant', 'type'], registry=self.registry)
+                      ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
         fips = Gauge('nova_quota_floating_ips',
                      'Nova floating IP addresses (number)',
-                     ['cloud', 'tenant', 'type'], registry=self.registry)
+                     ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
         inst = Gauge('nova_quota_instances',
                      'Nova instances (number)',
-                     ['cloud', 'tenant', 'type'], registry=self.registry)
+                     ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
         ram = Gauge('nova_quota_ram_mbs',
                     'Nova RAM (MB)',
-                    ['cloud', 'tenant', 'type'], registry=self.registry)
+                    ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
         for t, q in self.prodstack['nova_quotas'].items():
             if t in self.tenant_map:
                 tenant = self.tenant_map[t]
@@ -525,16 +525,16 @@ class Nova():
 
             # we get detailed quota information only on recent OS versions
             if isinstance(q['cores'], int):
-                cores.labels(config['cloud'], tenant, 'limit').set(q['cores'])
-                fips.labels(config['cloud'], tenant, 'limit').set(q['floating_ips'])
-                inst.labels(config['cloud'], tenant, 'limit').set(q['instances'])
-                ram.labels(config['cloud'], tenant, 'limit').set(q['ram'])
+                cores.labels(config['cloud'], tenant, t, 'limit').set(q['cores'])
+                fips.labels(config['cloud'], tenant, t, 'limit').set(q['floating_ips'])
+                inst.labels(config['cloud'], tenant, t, 'limit').set(q['instances'])
+                ram.labels(config['cloud'], tenant, t, 'limit').set(q['ram'])
             else:
                 for tt in ['limit', 'in_use', 'reserved']:
-                    cores.labels(config['cloud'], tenant, tt).inc(q['cores'][tt])
-                    fips.labels(config['cloud'], tenant, tt).inc(q['floating_ips'][tt])
-                    inst.labels(config['cloud'], tenant, tt).inc(q['instances'][tt])
-                    ram.labels(config['cloud'], tenant, tt).inc(q['ram'][tt])
+                    cores.labels(config['cloud'], tenant, t, tt).inc(q['cores'][tt])
+                    fips.labels(config['cloud'], tenant, t, tt).inc(q['floating_ips'][tt])
+                    inst.labels(config['cloud'], tenant, t, tt).inc(q['instances'][tt])
+                    ram.labels(config['cloud'], tenant, t, tt).inc(q['ram'][tt])
 
     def get_stats(self):
         log.debug("get_stats")
@@ -696,7 +696,7 @@ class SwiftAccountUsage():
     def gen_account_stats(self):
         self.keystone_tenants_map = self._read_keystone_tenants_map(
             config.get('keystone_tenants_map', None))
-        labels = ['cloud', 'swift_account', 'tenant']
+        labels = ['cloud', 'swift_account', 'tenant', 'tenant_id']
         swift_account = Gauge(
             'swift_account_bytes_used', 'Swift account usage in bytes', labels, registry=self.registry)
 
@@ -704,7 +704,7 @@ class SwiftAccountUsage():
             account = self.reseller_prefix + tenant_id
             bytes_used = self._get_account_usage(account)
 
-            swift_account.labels(config['cloud'], account, tenant_name).set(bytes_used)
+            swift_account.labels(config['cloud'], account, tenant_name, tenant_id).set(bytes_used)
 
     def get_stats(self):
         self.gen_account_stats()
