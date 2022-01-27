@@ -1,4 +1,0 @@
-[flake8]
-exclude = .venv,src/vendor
-max-complexity = 10
-max-line-length = 120

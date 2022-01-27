@@ -10,3 +10,5 @@ debian/files
 parts
 prime
 stage
+.idea
+.tox

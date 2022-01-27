@@ -1,8 +1,11 @@
+"""This module install prometheus-openstack-exporter."""
 import os
+
 from setuptools import setup
 
 
 def read(fname):
+    """Read a file and return the content."""
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
@@ -24,11 +27,10 @@ setup(
         "netaddr",
         "swift",
     ],
-    long_description=read('README.md'),
+    long_description=read("README.md"),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Topic :: System :: Networking :: Monitoring",
-        "License :: OSI Approved :: "
-        "GNU General Public License v3 or later (GPLv3+)",
+        "License :: OSI Approved :: " "GNU General Public License v3 or later (GPLv3+)",
     ],
 )

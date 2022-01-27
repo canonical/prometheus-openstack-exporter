@@ -29,11 +29,13 @@ install-build-depends:
 	    debhelper \
 	    git-buildpackage
 
-lint: lint-python
+lint:
+	@echo "Running lint checks"
+	@tox -e lint
 
-# See .flake8 for config options.
-lint-python: $(VENV)
-	$(FLAKE8) $(PROJECTPATH) $(EXTRA_PY)
+black:
+	@echo "Reformat files with black"
+	@tox -e black
 
 test: test-python
 

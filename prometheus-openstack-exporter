@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-OpenStack exporter for the prometheus monitoring system
+OpenStack exporter for the prometheus monitoring system.
 
 Copyright (C) 2016-2019 Canonical, Ltd.
 Authors:
@@ -22,71 +22,87 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import argparse
-import yaml
-import json
 import ast
-from os import environ as env
-from os import rename, path
+import json
+import logging
+import logging.handlers
+import pickle
+import random
 import traceback
 import urlparse
-from threading import Thread
-import pickle
-import requests
-from time import sleep, time
-from neutronclient.v2_0 import client as neutron_client
-# from novaclient.v1_1 import client as nova_client
-# http://docs.openstack.org/developer/python-novaclient/api.html
-from cinderclient.v2 import client as cinder_client
-from novaclient import client as nova_client
 from BaseHTTPServer import BaseHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
 from SocketServer import ForkingMixIn
-from prometheus_client import CollectorRegistry, generate_latest, Gauge, CONTENT_TYPE_LATEST
+from os import environ as env
+from os import path, rename
+from threading import Thread
+from time import sleep, time
+
+from cinderclient.v2 import client as cinder_client
+
 from netaddr import IPRange
 
-import random
-import swift.common.utils
+from neutronclient.v2_0 import client as neutron_client
 
+# from novaclient.v1_1 import client as nova_client
+# http://docs.openstack.org/developer/python-novaclient/api.html
+from novaclient import client as nova_client
+
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Gauge,
+    generate_latest,
+)
+
+import requests
+
+import swift.common.utils
 from swift.common.ring.ring import Ring
 
-import logging
-import logging.handlers
+import yaml
 
 config = None
-log = logging.getLogger('poe-logger')
+log = logging.getLogger("poe-logger")
 
 
 def get_creds_dict(*names):
-    """Get dictionary with cred envvars"""
-    return {name: env['OS_%s' % name.upper()]
-            for name in names if 'OS_%s' % name.upper() in env}
+    """Get dictionary with cred envvars."""
+    return {
+        name: env["OS_%s" % name.upper()]
+        for name in names
+        if "OS_%s" % name.upper() in env
+    }
 
 
 def get_creds_list(*names):
-    """Get list with cred envvars, error if not set"""
-    return [env['OS_%s' % name.upper()] for name in names]
+    """Get list with cred envvars, error if not set."""
+    return [env["OS_%s" % name.upper()] for name in names]
 
 
 def maybe_get_cacert():
-    """Get cacert, None if unset"""
+    """Get cacert, None if unset."""
     return env.get("OS_CACERT")
 
 
 def get_clients():
-    ks_version = int(env.get('OS_IDENTITY_API_VERSION', 2))
+    """Return openstack clients."""
+    ks_version = int(env.get("OS_IDENTITY_API_VERSION", 2))
     if ks_version == 2:
         from keystoneclient.v2_0 import client as keystone_client
+
         # Legacy v2 env vars:
         # OS_USERNAME OS_PASSWORD OS_TENANT_NAME OS_AUTH_URL OS_REGION_NAME
-        ks_creds = get_creds_dict("username", "password", "tenant_name",
-                                  "auth_url", "region_name")
+        ks_creds = get_creds_dict(
+            "username", "password", "tenant_name", "auth_url", "region_name"
+        )
         cacert = maybe_get_cacert()
         if cacert:
             ks_creds["cacert"] = cacert
-        nova_creds = [2] + get_creds_list("username", "password", "tenant_name",
-                                          "auth_url")
-        cinder_creds = get_creds_list("username", "password", "tenant_name",
-                                      "auth_url")
+        nova_creds = [2] + get_creds_list(
+            "username", "password", "tenant_name", "auth_url"
+        )
+        cinder_creds = get_creds_list("username", "password", "tenant_name", "auth_url")
         keystone = keystone_client.Client(**ks_creds)
         nova = nova_client.Client(*nova_creds, cacert=cacert)
         neutron = neutron_client.Client(**ks_creds)
@@ -96,6 +112,7 @@ def get_clients():
         from keystoneauth1.identity import v3
         from keystoneauth1 import session
         from keystoneclient.v3 import client
+
         # A little helper for the poor human trying to figure out which env vars
         # are needed, it worked for me (jjo) having:
         #  OS_USERNAME OS_PASSWORD OS_USER_DOMAIN_NAME OS_AUTH_URL
@@ -104,12 +121,26 @@ def get_clients():
 
         # project and project_domain are needed for listing projects
         ks_creds_domain = get_creds_dict(
-            "username", "password", "user_domain_name", "auth_url",
-            "project_domain_name", "project_name", "project_domain_id", "project_id")
+            "username",
+            "password",
+            "user_domain_name",
+            "auth_url",
+            "project_domain_name",
+            "project_name",
+            "project_domain_id",
+            "project_id",
+        )
         # Need non-domain creds to get full catalog
         ks_creds_admin = get_creds_dict(
-            "username", "password", "user_domain_name", "auth_url",
-            "project_domain_name", "project_name", "project_domain_id", "project_id")
+            "username",
+            "password",
+            "user_domain_name",
+            "auth_url",
+            "project_domain_name",
+            "project_name",
+            "project_domain_id",
+            "project_id",
+        )
         auth_domain = v3.Password(**ks_creds_domain)
         auth_admin = v3.Password(**ks_creds_admin)
         # Need to pass in cacert separately
@@ -119,7 +150,7 @@ def get_clients():
         sess_domain = session.Session(auth=auth_domain, verify=verify)
         sess_admin = session.Session(auth=auth_admin, verify=verify)
 
-        interface = env.get('OS_INTERFACE', 'admin')
+        interface = env.get("OS_INTERFACE", "admin")
 
         # Keystone has not switched from interface to endpoint_type yet
         keystone = client.Client(session=sess_domain, interface=interface)
@@ -128,79 +159,99 @@ def get_clients():
         cinder = cinder_client.Client(session=sess_admin, endpoint_type=interface)
 
     else:
-        raise(ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
+        raise (ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
     log.debug("Client setup done, keystone ver {}".format(ks_version))
     return (keystone, nova, neutron, cinder)
 
 
 class DataGatherer(Thread):
-    """Periodically retrieve data from openstack in a separate thread,
-    save as pickle to cache_file
+    """Periodically retrieve data from openstack in a separate thread.
+
+    Save as pickle to cache_file.
     """
 
     def __init__(self):
+        """Initialize DataGatherer."""
         Thread.__init__(self)
         self.daemon = True
         self.duration = 0
-        self.refresh_interval = config.get('cache_refresh_interval', 900)
-        self.cache_file = config['cache_file']
-        self.use_nova_volumes = config.get('use_nova_volumes', True)
+        self.refresh_interval = config.get("cache_refresh_interval", 900)
+        self.cache_file = config["cache_file"]
+        self.use_nova_volumes = config.get("use_nova_volumes", True)
 
     def _get_keystone_info(self, keystone):
+        """Return a dict containing tentants details."""
         info = {}
         try:
-            info['tenants'] = [x._info for x in keystone.tenants.list()]
+            info["tenants"] = [x._info for x in keystone.tenants.list()]
         except AttributeError:
             log.info("Error getting tenants.list, continue with projects.list")
-            info['tenants'] = [x._info for x in keystone.projects.list()]
-            log.debug("Number of projects: %s", len(info['tenants']))
+            info["tenants"] = [x._info for x in keystone.projects.list()]
+            log.debug("Number of projects: %s", len(info["tenants"]))
         return info
 
     def _get_neutron_info(self, neutron):
+        """Return neutron resources details."""
         info = {}
-        info['floatingips'] = neutron.list_floatingips()['floatingips']
-        info['networks'] = neutron.list_networks()['networks']
-        info['ports'] = neutron.list_ports()['ports']
-        info['routers'] = neutron.list_routers()['routers']
-        info['subnets'] = neutron.list_subnets()['subnets']
+        info["floatingips"] = neutron.list_floatingips()["floatingips"]
+        info["networks"] = neutron.list_networks()["networks"]
+        info["ports"] = neutron.list_ports()["ports"]
+        info["routers"] = neutron.list_routers()["routers"]
+        info["subnets"] = neutron.list_subnets()["subnets"]
         return info
 
     def _get_nova_info(self, nova, cinder, prodstack):
+        """Return nova resources details."""
         info = {}
-        info['hypervisors'] = [x._info for x in nova.hypervisors.list()]
-        info['services'] = [x._info for x in nova.services.list()]
-        info['flavors'] = [x._info for x in nova.flavors.list(is_public=None)]
-        info['aggregates'] = [x.to_dict() for x in nova.aggregates.list()]
+        info["hypervisors"] = [x._info for x in nova.hypervisors.list()]
+        info["services"] = [x._info for x in nova.services.list()]
+        info["flavors"] = [x._info for x in nova.flavors.list(is_public=None)]
+        info["aggregates"] = [x.to_dict() for x in nova.aggregates.list()]
 
-        info['instances'] = []
+        info["instances"] = []
         # Exclude instances in 'BUILD' state as they cannot be used as markers:
         #   https://github.com/CanonicalLtd/prometheus-openstack-exporter/issues/90
-        valid_statuses = ['ACTIVE', 'ERROR', 'SHELVED_OFFLOADED', 'SHUTOFF', 'SUSPENDED', 'VERIFY_RESIZE']
+        valid_statuses = [
+            "ACTIVE",
+            "ERROR",
+            "SHELVED_OFFLOADED",
+            "SHUTOFF",
+            "SUSPENDED",
+            "VERIFY_RESIZE",
+        ]
         for status in valid_statuses:
-            marker = ''
+            marker = ""
             while True:
-                search_opts = {'all_tenants': '1', 'limit': '100', 'marker': marker, 'status': status}
-                new_instances = [x._info for x in nova.servers.list(search_opts=search_opts)]
+                search_opts = {
+                    "all_tenants": "1",
+                    "limit": "100",
+                    "marker": marker,
+                    "status": status,
+                }
+                new_instances = [
+                    x._info for x in nova.servers.list(search_opts=search_opts)
+                ]
                 if new_instances:
-                    marker = new_instances[-1]['id']
-                    info['instances'].extend(new_instances)
+                    marker = new_instances[-1]["id"]
+                    info["instances"].extend(new_instances)
                 else:
                     break
 
-        info['volume_quotas'] = {}
-        info['nova_quotas'] = {}
-        for t in prodstack['tenants']:
-            tid = t['id']
+        info["volume_quotas"] = {}
+        info["nova_quotas"] = {}
+        for t in prodstack["tenants"]:
+            tid = t["id"]
             if self.use_nova_volumes:
-                info['volume_quotas'][tid] = cinder.quotas.get(tid, usage=True)._info
+                info["volume_quotas"][tid] = cinder.quotas.get(tid, usage=True)._info
             # old OS versions (e.g. Mitaka) will 404 if we request details
             try:
-                info['nova_quotas'][tid] = nova.quotas.get(tid, detail=True)._info
+                info["nova_quotas"][tid] = nova.quotas.get(tid, detail=True)._info
             except Exception:
-                info['nova_quotas'][tid] = nova.quotas.get(tid)._info
+                info["nova_quotas"][tid] = nova.quotas.get(tid)._info
         return info
 
     def run(self):
+        """Start collecting openstack resources details."""
         log.debug("Starting data gather thread")
         prodstack = {}
         while True:
@@ -214,47 +265,60 @@ class DataGatherer(Thread):
 
             except Exception:
                 # Ignore failures, we will try again after refresh_interval.
-                # Most of them are termporary ie. connectivity problmes
-                # To alert on stale cache use openstack_exporter_cache_age_seconds metric
+                # Most of them are temporary ie. connectivity problems
+                # To alert on stale cache use
+                # openstack_exporter_cache_age_seconds metric
                 log.critical("Error getting stats: {}".format(traceback.format_exc()))
             else:
-                with open(self.cache_file + '.new', "wb+") as f:
-                    pickle.dump((prodstack, ), f, pickle.HIGHEST_PROTOCOL)
-                rename(self.cache_file + '.new', self.cache_file)
+                with open(self.cache_file + ".new", "wb+") as f:
+                    pickle.dump((prodstack,), f, pickle.HIGHEST_PROTOCOL)
+                rename(self.cache_file + ".new", self.cache_file)
                 log.debug("Done dumping stats to {}".format(self.cache_file))
             self.duration = time() - start_time
             sleep(self.refresh_interval)
 
     def get_stats(self):
+        """Return collection statistics."""
         registry = CollectorRegistry()
-        labels = ['cloud']
-        age = Gauge('openstack_exporter_cache_age_seconds',
-                    'Cache age in seconds. It can reset more frequently '
-                    'than scraping interval so we use Gauge',
-                    labels, registry=registry)
-        label_values = [config['cloud']]
+        labels = ["cloud"]
+        age = Gauge(
+            "openstack_exporter_cache_age_seconds",
+            "Cache age in seconds. It can reset more frequently "
+            "than scraping interval so we use Gauge",
+            labels,
+            registry=registry,
+        )
+        label_values = [config["cloud"]]
         age.labels(*label_values).set(time() - path.getmtime(self.cache_file))
-        duration = Gauge('openstack_exporter_cache_refresh_duration_seconds',
-                         'Cache refresh duration in seconds.',
-                         labels, registry=registry)
+        duration = Gauge(
+            "openstack_exporter_cache_refresh_duration_seconds",
+            "Cache refresh duration in seconds.",
+            labels,
+            registry=registry,
+        )
         duration.labels(*label_values).set(self.duration)
         return generate_latest(registry)
 
 
-class Neutron():
+class Neutron:
+    """Class to manage neutron resources metrics collection."""
+
     def __init__(self):
+        """Initialize Neutron collector."""
         self.registry = CollectorRegistry()
         self.prodstack = {}
-        with open(config['cache_file'], 'rb') as f:
+        with open(config["cache_file"], "rb") as f:
             self.prodstack = pickle.load(f)[0]
 
-        self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
-        self.network_map = {n['id']: n['name'] for n in self.prodstack['networks']}
+        self.tenant_map = {t["id"]: t["name"] for t in self.prodstack["tenants"]}
+        self.network_map = {n["id"]: n["name"] for n in self.prodstack["networks"]}
         self.subnet_map = {
-            n['id']: {'name': n['name'], 'pool': n['allocation_pools']} for n in self.prodstack['subnets']}
-        self.routers = self.prodstack['routers']
-        self.ports = self.prodstack['ports']
-        self.floating_ips = self.prodstack['floatingips']
+            n["id"]: {"name": n["name"], "pool": n["allocation_pools"]}
+            for n in self.prodstack["subnets"]
+        }
+        self.routers = self.prodstack["routers"]
+        self.ports = self.prodstack["ports"]
+        self.floating_ips = self.prodstack["floatingips"]
 
     def _get_router_ip(self, uuid):
         owner = "network:router_gateway"
@@ -264,14 +328,22 @@ class Neutron():
                     return port["fixed_ips"][0]["ip_address"]
 
     def get_floating_ips(self):
+        """Collect Floating IPs."""
         ips = {}
         for ip in self.floating_ips:
-            subnet = self.network_map[ip['floating_network_id']]
+            subnet = self.network_map[ip["floating_network_id"]]
             try:
-                tenant = self.tenant_map[ip['tenant_id']]
+                tenant = self.tenant_map[ip["tenant_id"]]
             except KeyError:
-                tenant = 'Unknown tenant ({})'.format(ip['tenant_id'])
-            key = (config['cloud'], subnet, tenant, ip['tenant_id'], 'floatingip', ip['status'])
+                tenant = "Unknown tenant ({})".format(ip["tenant_id"])
+            key = (
+                config["cloud"],
+                subnet,
+                tenant,
+                ip["tenant_id"],
+                "floatingip",
+                ip["status"],
+            )
             if key in ips:
                 ips[key] += 1
             else:
@@ -279,17 +351,25 @@ class Neutron():
         return ips
 
     def get_router_ips(self):
+        """Collect Router IPs."""
         ips = {}
         for r in self.routers:
-            if self._get_router_ip(r['id']):
-                if r['tenant_id'].startswith('<Tenant {'):
-                    r['tenant_id'] = ast.literal_eval(r['tenant_id'][8:-1])['id']
+            if self._get_router_ip(r["id"]):
+                if r["tenant_id"].startswith("<Tenant {"):
+                    r["tenant_id"] = ast.literal_eval(r["tenant_id"][8:-1])["id"]
                 try:
-                    tenant = self.tenant_map[r['tenant_id']]
+                    tenant = self.tenant_map[r["tenant_id"]]
                 except KeyError:
-                    tenant = 'Unknown tenant ({})'.format(r['tenant_id'])
-                subnet = self.network_map[r['external_gateway_info']['network_id']]
-                key = (config['cloud'], subnet, tenant, r['tenant_id'], 'routerip', r['status'])
+                    tenant = "Unknown tenant ({})".format(r["tenant_id"])
+                subnet = self.network_map[r["external_gateway_info"]["network_id"]]
+                key = (
+                    config["cloud"],
+                    subnet,
+                    tenant,
+                    r["tenant_id"],
+                    "routerip",
+                    r["status"],
+                )
                 if key in ips:
                     ips[key] += 1
                 else:
@@ -297,128 +377,208 @@ class Neutron():
         return ips
 
     def gen_subnet_size(self):
-        labels = ['cloud', 'network_name']
-        net_size = Gauge('neutron_net_size',
-                         'Neutron networks size',
-                         labels, registry=self.registry)
-        for n in self.prodstack['networks']:
+        """Collect Neutron subnets ip ranges sizes."""
+        labels = ["cloud", "network_name"]
+        net_size = Gauge(
+            "neutron_net_size", "Neutron networks size", labels, registry=self.registry
+        )
+        for n in self.prodstack["networks"]:
             size = 0
-            for subnet in n['subnets']:
-                for pool in self.subnet_map[subnet]['pool']:
-                    if ':' in pool['start']:
+            for subnet in n["subnets"]:
+                for pool in self.subnet_map[subnet]["pool"]:
+                    if ":" in pool["start"]:
                         # Skip IPv6 address pools; they are big enough to
                         # drown the IPv4 numbers we might care about.
                         continue
-                    size += IPRange(pool['start'], pool['end']).size
-            label_values = [config['cloud'], self.network_map[n['id']]]
+                    size += IPRange(pool["start"], pool["end"]).size
+            label_values = [config["cloud"], self.network_map[n["id"]]]
             net_size.labels(*label_values).set(size)
 
     def get_stats(self):
-        labels = ['cloud', 'subnet_name', 'tenant', 'tenant_id', 'ip_type', 'ip_status']
+        """Get Neutron metrics."""
+        labels = ["cloud", "subnet_name", "tenant", "tenant_id", "ip_type", "ip_status"]
         ips = self.get_floating_ips()
         ips.update(self.get_router_ips())
-        metrics = Gauge('neutron_public_ip_usage',
-                        'Neutron floating IP and router IP usage statistics',
-                        labels, registry=self.registry)
+        metrics = Gauge(
+            "neutron_public_ip_usage",
+            "Neutron floating IP and router IP usage statistics",
+            labels,
+            registry=self.registry,
+        )
         for k, v in ips.items():
             metrics.labels(*k).set(v)
         self.gen_subnet_size()
         return generate_latest(self.registry)
 
 
-class Cinder():
+class Cinder:
+    """Class to manage Cinder resources metrics collection."""
+
     def __init__(self):
+        """Initilize Cinder collector."""
         self.registry = CollectorRegistry()
         self.prodstack = {}
-        with open(config['cache_file'], 'rb') as f:
+        with open(config["cache_file"], "rb") as f:
             self.prodstack = pickle.load(f)[0]
-        self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
-        self.use_nova_volumes = config.get('use_nova_volumes', True)
+        self.tenant_map = {t["id"]: t["name"] for t in self.prodstack["tenants"]}
+        self.use_nova_volumes = config.get("use_nova_volumes", True)
 
     def gen_volume_quota_stats(self):
-        gbs = Gauge('cinder_quota_volume_disk_gigabytes',
-                    'Cinder volume metric (GB)',
-                    ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
-        vol = Gauge('cinder_quota_volume_disks',
-                    'Cinder volume metric (number of volumes)',
-                    ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
+        """Collect Cinder volume quotas."""
+        gbs = Gauge(
+            "cinder_quota_volume_disk_gigabytes",
+            "Cinder volume metric (GB)",
+            ["cloud", "tenant", "tenant_id", "type"],
+            registry=self.registry,
+        )
+        vol = Gauge(
+            "cinder_quota_volume_disks",
+            "Cinder volume metric (number of volumes)",
+            ["cloud", "tenant", "tenant_id", "type"],
+            registry=self.registry,
+        )
         if not self.use_nova_volumes:
             return
-        for t, q in self.prodstack['volume_quotas'].items():
+        for t, q in self.prodstack["volume_quotas"].items():
             if t in self.tenant_map:
                 tenant = self.tenant_map[t]
             else:
-                tenant = 'orphaned'
-            for tt in ['limit', 'in_use', 'reserved']:
-                gbs.labels(config['cloud'], tenant, t, tt).inc(q['gigabytes'][tt])
-                vol.labels(config['cloud'], tenant, t, tt).inc(q['volumes'][tt])
+                tenant = "orphaned"
+            for tt in ["limit", "in_use", "reserved"]:
+                gbs.labels(config["cloud"], tenant, t, tt).inc(q["gigabytes"][tt])
+                vol.labels(config["cloud"], tenant, t, tt).inc(q["volumes"][tt])
 
     def get_stats(self):
+        """Get Cinder metrics."""
         self.gen_volume_quota_stats()
         return generate_latest(self.registry)
 
 
-class Nova():
+class Nova:
+    """Class to manage Nova resources metrics collection."""
+
     def __init__(self):
+        """Initilize Nova collector."""
         self.registry = CollectorRegistry()
         self.prodstack = {}
-        with open(config['cache_file'], 'rb') as f:
+        with open(config["cache_file"], "rb") as f:
             self.prodstack = pickle.load(f)[0]
-        self.hypervisors = self.prodstack['hypervisors']
-        self.tenant_map = {t['id']: t['name'] for t in self.prodstack['tenants']}
-        self.flavor_map = {f['id']: {'ram': f['ram'], 'disk': f['disk'], 'vcpus': f['vcpus']}
-                           for f in self.prodstack['flavors']}
+        self.hypervisors = self.prodstack["hypervisors"]
+        self.tenant_map = {t["id"]: t["name"] for t in self.prodstack["tenants"]}
+        self.flavor_map = {
+            f["id"]: {"ram": f["ram"], "disk": f["disk"], "vcpus": f["vcpus"]}
+            for f in self.prodstack["flavors"]
+        }
         self.aggregate_map = {}
         self.services_map = {}
-        for s in self.prodstack['services']:
-            if s['binary'] == 'nova-compute':
-                self.services_map[s['host']] = s['status']
-        for agg in self.prodstack['aggregates']:
-            self.aggregate_map.update({i: agg['name'] for i in agg['hosts']})
+        for s in self.prodstack["services"]:
+            if s["binary"] == "nova-compute":
+                self.services_map[s["host"]] = s["status"]
+        for agg in self.prodstack["aggregates"]:
+            self.aggregate_map.update({i: agg["name"] for i in agg["hosts"]})
 
     def _get_schedulable_instances(self, host):
-        free_vcpus = host['vcpus'] * config['openstack_allocation_ratio_vcpu'] - host['vcpus_used']
-        free_ram_mbs = host['memory_mb'] * config['openstack_allocation_ratio_ram'] - host['memory_mb_used']
-        free_disk_gbs = host['local_gb'] * config['openstack_allocation_ratio_disk'] - host['local_gb_used']
-        s = config['schedulable_instance_size']
-        if s['disk_gbs'] > 0:
-            return min(int(free_vcpus / s['vcpu']),
-                    int(free_ram_mbs / s['ram_mbs']),
-                    int(free_disk_gbs / s['disk_gbs']))
+        free_vcpus = (
+            host["vcpus"] * config["openstack_allocation_ratio_vcpu"]
+            - host["vcpus_used"]
+        )
+        free_ram_mbs = (
+            host["memory_mb"] * config["openstack_allocation_ratio_ram"]
+            - host["memory_mb_used"]
+        )
+        free_disk_gbs = (
+            host["local_gb"] * config["openstack_allocation_ratio_disk"]
+            - host["local_gb_used"]
+        )
+        s = config["schedulable_instance_size"]
+        if s["disk_gbs"] > 0:
+            return min(
+                int(free_vcpus / s["vcpu"]),
+                int(free_ram_mbs / s["ram_mbs"]),
+                int(free_disk_gbs / s["disk_gbs"]),
+            )
         else:
-            return min(int(free_vcpus / s['vcpu']),
-                    int(free_ram_mbs / s['ram_mbs']))
+            return min(int(free_vcpus / s["vcpu"]), int(free_ram_mbs / s["ram_mbs"]))
 
     def _get_schedulable_instances_capacity(self, host):
-        capacity_vcpus = host['vcpus'] * config['openstack_allocation_ratio_vcpu']
-        capacity_ram_mbs = host['memory_mb'] * config['openstack_allocation_ratio_ram']
-        capacity_disk_gbs = host['local_gb'] * config['openstack_allocation_ratio_disk']
-        s = config['schedulable_instance_size']
-        if s['disk_gbs'] > 0:
-            return min(int(capacity_vcpus / s['vcpu']),
-                    int(capacity_ram_mbs / s['ram_mbs']),
-                    int(capacity_disk_gbs / s['disk_gbs']))
+        capacity_vcpus = host["vcpus"] * config["openstack_allocation_ratio_vcpu"]
+        capacity_ram_mbs = host["memory_mb"] * config["openstack_allocation_ratio_ram"]
+        capacity_disk_gbs = host["local_gb"] * config["openstack_allocation_ratio_disk"]
+        s = config["schedulable_instance_size"]
+        if s["disk_gbs"] > 0:
+            return min(
+                int(capacity_vcpus / s["vcpu"]),
+                int(capacity_ram_mbs / s["ram_mbs"]),
+                int(capacity_disk_gbs / s["disk_gbs"]),
+            )
         else:
-            return min(int(capacity_vcpus / s['vcpu']),
-                    int(capacity_ram_mbs / s['ram_mbs']))
+            return min(
+                int(capacity_vcpus / s["vcpu"]), int(capacity_ram_mbs / s["ram_mbs"])
+            )
 
     def gen_hypervisor_stats(self):
-        labels = ['cloud', 'hypervisor_hostname', 'aggregate', 'nova_service_status', 'arch']
-        vms = Gauge('hypervisor_running_vms', 'Number of running VMs', labels, registry=self.registry)
-        vcpus_total = Gauge('hypervisor_vcpus_total', 'Total number of vCPUs', labels, registry=self.registry)
-        vcpus_used = Gauge('hypervisor_vcpus_used', 'Number of used vCPUs', labels, registry=self.registry)
+        """Collect Nova Hypervisors statistics."""
+        labels = [
+            "cloud",
+            "hypervisor_hostname",
+            "aggregate",
+            "nova_service_status",
+            "arch",
+        ]
+        vms = Gauge(
+            "hypervisor_running_vms",
+            "Number of running VMs",
+            labels,
+            registry=self.registry,
+        )
+        vcpus_total = Gauge(
+            "hypervisor_vcpus_total",
+            "Total number of vCPUs",
+            labels,
+            registry=self.registry,
+        )
+        vcpus_used = Gauge(
+            "hypervisor_vcpus_used",
+            "Number of used vCPUs",
+            labels,
+            registry=self.registry,
+        )
         mem_total = Gauge(
-            'hypervisor_memory_mbs_total', 'Total amount of memory in MBs', labels, registry=self.registry)
-        mem_used = Gauge('hypervisor_memory_mbs_used', 'Used memory in MBs', labels, registry=self.registry)
+            "hypervisor_memory_mbs_total",
+            "Total amount of memory in MBs",
+            labels,
+            registry=self.registry,
+        )
+        mem_used = Gauge(
+            "hypervisor_memory_mbs_used",
+            "Used memory in MBs",
+            labels,
+            registry=self.registry,
+        )
         disk_total = Gauge(
-            'hypervisor_disk_gbs_total', 'Total amount of disk space in GBs', labels, registry=self.registry)
-        disk_used = Gauge('hypervisor_disk_gbs_used', 'Used disk space in GBs', labels, registry=self.registry)
-        schedulable_instances = Gauge('hypervisor_schedulable_instances',
-                                      'Number of schedulable instances, see "schedulable_instance_size" option',
-                                      labels, registry=self.registry)
-        schedulable_instances_capacity = Gauge('hypervisor_schedulable_instances_capacity',
-                                               'Number of schedulable instances we have capacity for',
-                                               labels, registry=self.registry)
+            "hypervisor_disk_gbs_total",
+            "Total amount of disk space in GBs",
+            labels,
+            registry=self.registry,
+        )
+        disk_used = Gauge(
+            "hypervisor_disk_gbs_used",
+            "Used disk space in GBs",
+            labels,
+            registry=self.registry,
+        )
+        schedulable_instances = Gauge(
+            "hypervisor_schedulable_instances",
+            'Number of schedulable instances, see "schedulable_instance_size" option',
+            labels,
+            registry=self.registry,
+        )
+        schedulable_instances_capacity = Gauge(
+            "hypervisor_schedulable_instances_capacity",
+            "Number of schedulable instances we have capacity for",
+            labels,
+            registry=self.registry,
+        )
 
         def squashnone(val, default=0):
             if val is None:
@@ -427,57 +587,87 @@ class Nova():
 
         for h in self.hypervisors:
             log.debug("Hypervisor: %s", h)
-            host = h['service']['host']
+            host = h["service"]["host"]
             log.debug("host: %s", host)
-            cpu_info = h['cpu_info']
+            cpu_info = h["cpu_info"]
             log.debug("cpu_info: %s", cpu_info)
-            arch = 'Unknown'
+            arch = "Unknown"
             if not cpu_info:
                 log.info("Could not get cpu info")
             elif type(cpu_info) != dict:
                 cpu_info = json.loads(cpu_info)
-                arch = cpu_info['arch']
+                arch = cpu_info["arch"]
             label_values = [
-                config['cloud'], host, self.aggregate_map.get(host, 'unknown'), self.services_map[host], arch]
+                config["cloud"],
+                host,
+                self.aggregate_map.get(host, "unknown"),
+                self.services_map[host],
+                arch,
+            ]
             # Disabled hypervisors return None below, convert to 0
-            vms.labels(*label_values).set(squashnone(h['running_vms']))
-            vcpus_total.labels(*label_values).set(squashnone(h['vcpus']))
-            vcpus_used.labels(*label_values).set(squashnone(h['vcpus_used']))
-            mem_total.labels(*label_values).set(squashnone(h['memory_mb']))
-            mem_used.labels(*label_values).set(squashnone(h['memory_mb_used']))
-            disk_total.labels(*label_values).set(squashnone(h['local_gb']))
-            disk_used.labels(*label_values).set(squashnone(h['local_gb_used']))
+            vms.labels(*label_values).set(squashnone(h["running_vms"]))
+            vcpus_total.labels(*label_values).set(squashnone(h["vcpus"]))
+            vcpus_used.labels(*label_values).set(squashnone(h["vcpus_used"]))
+            mem_total.labels(*label_values).set(squashnone(h["memory_mb"]))
+            mem_used.labels(*label_values).set(squashnone(h["memory_mb_used"]))
+            disk_total.labels(*label_values).set(squashnone(h["local_gb"]))
+            disk_used.labels(*label_values).set(squashnone(h["local_gb_used"]))
 
             if config.get("schedulable_instance_size", False):
-                schedulable_instances.labels(*label_values).set(self._get_schedulable_instances(h))
-                schedulable_instances_capacity.labels(*label_values).set(self._get_schedulable_instances_capacity(h))
+                schedulable_instances.labels(*label_values).set(
+                    self._get_schedulable_instances(h)
+                )
+                schedulable_instances_capacity.labels(*label_values).set(
+                    self._get_schedulable_instances_capacity(h)
+                )
 
     def gen_instance_stats(self):
+        """Collect Nova instances statistics."""
         missing_flavors = False
-        instances = Gauge('nova_instances',
-                          'Nova instances metrics',
-                          ['cloud', 'name', 'tenant', 'tenant_id', 'instance_state'], registry=self.registry)
-        res_ram = Gauge('nova_resources_ram_mbs',
-                        'Nova RAM usage metric',
-                        ['cloud', 'tenant', 'tenant_id'], registry=self.registry)
-        res_vcpus = Gauge('nova_resources_vcpus',
-                          'Nova vCPU usage metric',
-                          ['cloud', 'tenant', 'tenant_id'], registry=self.registry)
-        res_disk = Gauge('nova_resources_disk_gbs',
-                         'Nova disk usage metric',
-                         ['cloud', 'tenant', 'tenant_id'], registry=self.registry)
-        for i in self.prodstack['instances']:
-            if i['tenant_id'] in self.tenant_map:
-                tenant = self.tenant_map[i['tenant_id']]
+        instances = Gauge(
+            "nova_instances",
+            "Nova instances metrics",
+            ["cloud", "name", "tenant", "tenant_id", "instance_state"],
+            registry=self.registry,
+        )
+        res_ram = Gauge(
+            "nova_resources_ram_mbs",
+            "Nova RAM usage metric",
+            ["cloud", "tenant", "tenant_id"],
+            registry=self.registry,
+        )
+        res_vcpus = Gauge(
+            "nova_resources_vcpus",
+            "Nova vCPU usage metric",
+            ["cloud", "tenant", "tenant_id"],
+            registry=self.registry,
+        )
+        res_disk = Gauge(
+            "nova_resources_disk_gbs",
+            "Nova disk usage metric",
+            ["cloud", "tenant", "tenant_id"],
+            registry=self.registry,
+        )
+        for i in self.prodstack["instances"]:
+            if i["tenant_id"] in self.tenant_map:
+                tenant = self.tenant_map[i["tenant_id"]]
             else:
-                tenant = 'orphaned'
-            instances.labels(config['cloud'], i['name'], tenant, i['tenant_id'], i['status']).inc()
+                tenant = "orphaned"
+            instances.labels(
+                config["cloud"], i["name"], tenant, i["tenant_id"], i["status"]
+            ).inc()
 
-            if i['flavor']['id'] in self.flavor_map:
-                flavor = self.flavor_map[i['flavor']['id']]
-                res_ram.labels(config['cloud'], tenant, i['tenant_id']).inc(flavor['ram'])
-                res_vcpus.labels(config['cloud'], tenant, i['tenant_id']).inc(flavor['vcpus'])
-                res_disk.labels(config['cloud'], tenant, i['tenant_id']).inc(flavor['disk'])
+            if i["flavor"]["id"] in self.flavor_map:
+                flavor = self.flavor_map[i["flavor"]["id"]]
+                res_ram.labels(config["cloud"], tenant, i["tenant_id"]).inc(
+                    flavor["ram"]
+                )
+                res_vcpus.labels(config["cloud"], tenant, i["tenant_id"]).inc(
+                    flavor["vcpus"]
+                )
+                res_disk.labels(config["cloud"], tenant, i["tenant_id"]).inc(
+                    flavor["disk"]
+                )
             else:
                 missing_flavors = True
 
@@ -486,57 +676,96 @@ class Nova():
             self.registry.unregister(res_ram)
             self.registry.unregister(res_vcpus)
             self.registry.unregister(res_disk)
-            res_ram = Gauge('nova_resources_ram_mbs', 'Nova RAM usage metric unavailable, missing flavors',
-                            [], registry=self.registry)
-            res_vcpus = Gauge('nova_resources_vcpus', 'Nova vCPU usage metric unavailable, missing flavors',
-                              [], registry=self.registry)
-            res_disk = Gauge('nova_resources_disk_gbs', 'Nova disk usage metric unavailable, missing flavors',
-                             [], registry=self.registry)
+            res_ram = Gauge(
+                "nova_resources_ram_mbs",
+                "Nova RAM usage metric unavailable, missing flavors",
+                [],
+                registry=self.registry,
+            )
+            res_vcpus = Gauge(
+                "nova_resources_vcpus",
+                "Nova vCPU usage metric unavailable, missing flavors",
+                [],
+                registry=self.registry,
+            )
+            res_disk = Gauge(
+                "nova_resources_disk_gbs",
+                "Nova disk usage metric unavailable, missing flavors",
+                [],
+                registry=self.registry,
+            )
 
     def gen_overcommit_stats(self):
-        labels = ['cloud', 'resource']
-        openstack_overcommit = Gauge('openstack_allocation_ratio', 'Openstack overcommit ratios',
-                                     labels, registry=self.registry)
-        label_values = [config['cloud'], 'vcpu']
-        openstack_overcommit.labels(*label_values).set(config['openstack_allocation_ratio_vcpu'])
-        label_values = [config['cloud'], 'ram']
-        openstack_overcommit.labels(*label_values).set(config['openstack_allocation_ratio_ram'])
-        label_values = [config['cloud'], 'disk']
-        openstack_overcommit.labels(*label_values).set(config['openstack_allocation_ratio_disk'])
+        """Calculate allocation ratio for vcpu, ram and disks."""
+        labels = ["cloud", "resource"]
+        openstack_overcommit = Gauge(
+            "openstack_allocation_ratio",
+            "Openstack overcommit ratios",
+            labels,
+            registry=self.registry,
+        )
+        label_values = [config["cloud"], "vcpu"]
+        openstack_overcommit.labels(*label_values).set(
+            config["openstack_allocation_ratio_vcpu"]
+        )
+        label_values = [config["cloud"], "ram"]
+        openstack_overcommit.labels(*label_values).set(
+            config["openstack_allocation_ratio_ram"]
+        )
+        label_values = [config["cloud"], "disk"]
+        openstack_overcommit.labels(*label_values).set(
+            config["openstack_allocation_ratio_disk"]
+        )
 
     def gen_quota_stats(self):
-        cores = Gauge('nova_quota_cores',
-                      'Nova cores metric',
-                      ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
-        fips = Gauge('nova_quota_floating_ips',
-                     'Nova floating IP addresses (number)',
-                     ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
-        inst = Gauge('nova_quota_instances',
-                     'Nova instances (number)',
-                     ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
-        ram = Gauge('nova_quota_ram_mbs',
-                    'Nova RAM (MB)',
-                    ['cloud', 'tenant', 'tenant_id', 'type'], registry=self.registry)
-        for t, q in self.prodstack['nova_quotas'].items():
+        """Collect Nova compute quotas."""
+        cores = Gauge(
+            "nova_quota_cores",
+            "Nova cores metric",
+            ["cloud", "tenant", "tenant_id", "type"],
+            registry=self.registry,
+        )
+        fips = Gauge(
+            "nova_quota_floating_ips",
+            "Nova floating IP addresses (number)",
+            ["cloud", "tenant", "tenant_id", "type"],
+            registry=self.registry,
+        )
+        inst = Gauge(
+            "nova_quota_instances",
+            "Nova instances (number)",
+            ["cloud", "tenant", "tenant_id", "type"],
+            registry=self.registry,
+        )
+        ram = Gauge(
+            "nova_quota_ram_mbs",
+            "Nova RAM (MB)",
+            ["cloud", "tenant", "tenant_id", "type"],
+            registry=self.registry,
+        )
+        for t, q in self.prodstack["nova_quotas"].items():
             if t in self.tenant_map:
                 tenant = self.tenant_map[t]
             else:
-                tenant = 'orphaned'
+                tenant = "orphaned"
 
             # we get detailed quota information only on recent OS versions
-            if isinstance(q['cores'], int):
-                cores.labels(config['cloud'], tenant, t, 'limit').set(q['cores'])
-                fips.labels(config['cloud'], tenant, t, 'limit').set(q['floating_ips'])
-                inst.labels(config['cloud'], tenant, t, 'limit').set(q['instances'])
-                ram.labels(config['cloud'], tenant, t, 'limit').set(q['ram'])
+            if isinstance(q["cores"], int):
+                cores.labels(config["cloud"], tenant, t, "limit").set(q["cores"])
+                fips.labels(config["cloud"], tenant, t, "limit").set(q["floating_ips"])
+                inst.labels(config["cloud"], tenant, t, "limit").set(q["instances"])
+                ram.labels(config["cloud"], tenant, t, "limit").set(q["ram"])
             else:
-                for tt in ['limit', 'in_use', 'reserved']:
-                    cores.labels(config['cloud'], tenant, t, tt).inc(q['cores'][tt])
-                    fips.labels(config['cloud'], tenant, t, tt).inc(q['floating_ips'][tt])
-                    inst.labels(config['cloud'], tenant, t, tt).inc(q['instances'][tt])
-                    ram.labels(config['cloud'], tenant, t, tt).inc(q['ram'][tt])
+                for tt in ["limit", "in_use", "reserved"]:
+                    cores.labels(config["cloud"], tenant, t, tt).inc(q["cores"][tt])
+                    fips.labels(config["cloud"], tenant, t, tt).inc(
+                        q["floating_ips"][tt]
+                    )
+                    inst.labels(config["cloud"], tenant, t, tt).inc(q["instances"][tt])
+                    ram.labels(config["cloud"], tenant, t, tt).inc(q["ram"][tt])
 
     def get_stats(self):
+        """Collect Nova metrics."""
         log.debug("get_stats")
         self.gen_hypervisor_stats()
         self.gen_instance_stats()
@@ -545,92 +774,143 @@ class Nova():
         return generate_latest(self.registry)
 
 
-class Swift():
+class Swift:
+    """Class to manage Swift resources metrics collection."""
+
     def __init__(self):
+        """Initilize Swift collector."""
         self.registry = CollectorRegistry()
-        self.baseurl = 'http://{}:6000/recon/{}'
-        self.swift_hosts = config.get('swift_hosts', [])
+        self.baseurl = "http://{}:6000/recon/{}"
+        self.swift_hosts = config.get("swift_hosts", [])
 
     def gen_up_stats(self):
-        labels = ['cloud', 'hostname']
-        swift_up = Gauge('swift_host_up', 'Swift host reachability',
-                         labels, registry=self.registry)
+        """Collect Swift host up metric."""
+        labels = ["cloud", "hostname"]
+        swift_up = Gauge(
+            "swift_host_up", "Swift host reachability", labels, registry=self.registry
+        )
         for h in self.swift_hosts:
             try:
-                requests.get(self.baseurl.format(h, 'diskusage'))
-                swift_up.labels(config['cloud'], h).set(1)
+                requests.get(self.baseurl.format(h, "diskusage"))
+                swift_up.labels(config["cloud"], h).set(1)
             except requests.exceptions.RequestException:
-                swift_up.labels(config['cloud'], h).set(0)
+                swift_up.labels(config["cloud"], h).set(0)
 
     def gen_disk_usage_stats(self):
-        labels = ['cloud', 'hostname', 'device', 'type']
-        swift_disk = Gauge('swift_disk_usage_bytes', 'Swift disk usage in bytes',
-                           labels, registry=self.registry)
+        """Collect Swift hosts disk usage metric."""
+        labels = ["cloud", "hostname", "device", "type"]
+        swift_disk = Gauge(
+            "swift_disk_usage_bytes",
+            "Swift disk usage in bytes",
+            labels,
+            registry=self.registry,
+        )
         for h in self.swift_hosts:
             try:
-                r = requests.get(self.baseurl.format(h, 'diskusage'))
+                r = requests.get(self.baseurl.format(h, "diskusage"))
             except requests.exceptions.RequestException:
                 continue
             for disk in r.json():
-                if not all([disk.get(i, False) for i in ['size', 'used', 'device']]):
+                if not all([disk.get(i, False) for i in ["size", "used", "device"]]):
                     continue
-                swift_disk.labels(config['cloud'], h, disk['device'], 'size').set(int(disk['size']))
-                swift_disk.labels(config['cloud'], h, disk['device'], 'used').set(int(disk['used']))
+                swift_disk.labels(config["cloud"], h, disk["device"], "size").set(
+                    int(disk["size"])
+                )
+                swift_disk.labels(config["cloud"], h, disk["device"], "used").set(
+                    int(disk["used"])
+                )
 
     def gen_quarantine_stats(self):
-        labels = ['cloud', 'hostname', 'ring']
-        swift_quarantine = Gauge('swift_quarantined_objects', 'Number of quarantined objects',
-                                 labels, registry=self.registry)
+        """Collect Swift object in quarantine metric."""
+        labels = ["cloud", "hostname", "ring"]
+        swift_quarantine = Gauge(
+            "swift_quarantined_objects",
+            "Number of quarantined objects",
+            labels,
+            registry=self.registry,
+        )
         for h in self.swift_hosts:
             try:
-                r = requests.get(self.baseurl.format(h, 'quarantined'))
+                r = requests.get(self.baseurl.format(h, "quarantined"))
             except requests.exceptions.RequestException:
                 continue
-            for ring in ['accounts', 'objects', 'containers']:
-                swift_quarantine.labels(config['cloud'], h, ring).set(r.json().get(ring))
+            for ring in ["accounts", "objects", "containers"]:
+                swift_quarantine.labels(config["cloud"], h, ring).set(
+                    r.json().get(ring)
+                )
 
     def _get_object_ring_replication_stats(self, h, swift_repl_duration):
         # Object replication is special
         try:
-            r = requests.get(self.baseurl.format(h, 'replication/object'))
+            r = requests.get(self.baseurl.format(h, "replication/object"))
         except requests.exceptions.RequestException:
             return
         try:
-            swift_repl_duration.labels(config['cloud'], h, 'object').set(r.json()['object_replication_time'])
+            swift_repl_duration.labels(config["cloud"], h, "object").set(
+                r.json()["object_replication_time"]
+            )
         except TypeError:
             print(traceback.format_exc())
 
     def _get_ring_replication_stats(self, ring, h, swift_repl_duration, swift_repl):
-        metrics = ['attempted', 'diff', 'diff_capped', 'empty',
-                   'failure', 'hashmatch', 'no_change', 'remote_merge',
-                   'remove', 'rsync', 'success', 'ts_repl']
+        metrics = [
+            "attempted",
+            "diff",
+            "diff_capped",
+            "empty",
+            "failure",
+            "hashmatch",
+            "no_change",
+            "remote_merge",
+            "remove",
+            "rsync",
+            "success",
+            "ts_repl",
+        ]
         try:
-            r = requests.get(self.baseurl.format(h, 'replication/' + ring))
+            r = requests.get(self.baseurl.format(h, "replication/" + ring))
         except requests.exceptions.RequestException:
             return
         try:
-            swift_repl_duration.labels(config['cloud'], h, ring).set(r.json()['replication_time'])
+            swift_repl_duration.labels(config["cloud"], h, ring).set(
+                r.json()["replication_time"]
+            )
         except TypeError:
             print(traceback.format_exc())
 
         for metric in metrics:
             try:
-                swift_repl.labels(config['cloud'], h, ring, metric).set(r.json()['replication_stats'][metric])
+                swift_repl.labels(config["cloud"], h, ring, metric).set(
+                    r.json()["replication_stats"][metric]
+                )
             except TypeError:
                 print(traceback.format_exc())
 
     def gen_replication_stats(self):
-        labels = ['cloud', 'hostname', 'ring', 'type']
-        swift_repl = Gauge('swift_replication_stats', 'Swift replication stats', labels, registry=self.registry)
-        labels = ['cloud', 'hostname', 'ring']
-        swift_repl_duration = Gauge('swift_replication_duration_seconds', 'Swift replication duration in seconds',
-                                    labels, registry=self.registry)
+        """Collect Swift replication statistics."""
+        labels = ["cloud", "hostname", "ring", "type"]
+        swift_repl = Gauge(
+            "swift_replication_stats",
+            "Swift replication stats",
+            labels,
+            registry=self.registry,
+        )
+        labels = ["cloud", "hostname", "ring"]
+        swift_repl_duration = Gauge(
+            "swift_replication_duration_seconds",
+            "Swift replication duration in seconds",
+            labels,
+            registry=self.registry,
+        )
         for h in self.swift_hosts:
             self._get_object_ring_replication_stats(h, swift_repl_duration)
-            for ring in ['account', 'container']:
-                self._get_ring_replication_stats(ring, h, swift_repl_duration, swift_repl)
+            for ring in ["account", "container"]:
+                self._get_ring_replication_stats(
+                    ring, h, swift_repl_duration, swift_repl
+                )
 
     def get_stats(self):
+        """Collect all Swift statistics."""
         self.gen_up_stats()
         self.gen_disk_usage_stats()
         self.gen_quarantine_stats()
@@ -638,26 +918,30 @@ class Swift():
         return generate_latest(self.registry)
 
 
-class SwiftAccountUsage():
+class SwiftAccountUsage:
+    """Class to manage Swift Account metrics collection."""
+
     def __init__(self):
+        """Initialize Swift Account collector."""
         self.registry = CollectorRegistry()
 
-        self.hash_path_prefix = config.get('hash_path_prefix', None)
+        self.hash_path_prefix = config.get("hash_path_prefix", None)
         if self.hash_path_prefix:
             swift.common.utils.HASH_PATH_PREFIX = self.hash_path_prefix
-        self.hash_path_suffix = config.get('hash_path_suffix', None)
+        self.hash_path_suffix = config.get("hash_path_suffix", None)
         if self.hash_path_suffix:
             swift.common.utils.HASH_PATH_SUFFIX = self.hash_path_suffix
 
-        self.reseller_prefix = config.get('reseller_prefix', 'AUTH_')
-        self.ring_path = config.get('ring_path', '/etc/swift')
+        self.reseller_prefix = config.get("reseller_prefix", "AUTH_")
+        self.ring_path = config.get("ring_path", "/etc/swift")
 
         try:
             self.account_ring = self._get_account_ring()
         except SystemExit:
             # Most likely raised by swift.common.utils.validate_configuration().
             raise Exception(
-                "Is swift.conf readable or at least one hash path variable configured?")
+                "Is swift.conf readable or at least one hash path variable configured?"
+            )
 
     def _read_keystone_tenants_map(self, map_path):
         if not map_path:
@@ -666,7 +950,7 @@ class SwiftAccountUsage():
         m = {}
         with open(map_path) as km:
             line = km.readline()
-            while line != '':
+            while line != "":
                 name, id = line.strip().split()
                 m[name] = id
                 line = km.readline()
@@ -677,140 +961,164 @@ class SwiftAccountUsage():
         """Read the account ring from the configured location, and return it."""
         return Ring(
             serialized_path=self.ring_path,
-            ring_name='account',
-            )
+            ring_name="account",
+        )
 
     def _get_account_usage(self, account):
         partition, nodes = self.account_ring.get_nodes(account=account)
         node = random.choice(nodes)
-        account_url = 'http://{ip}:{port}/{device}/{partition}/{account}'.format(
-            account=account,
-            partition=partition,
-            **node)
+        account_url = "http://{ip}:{port}/{device}/{partition}/{account}".format(
+            account=account, partition=partition, **node
+        )
         response = requests.head(account_url)
         if response.status_code == 204:
-            return int(response.headers['X-Account-Bytes-Used'])
+            return int(response.headers["X-Account-Bytes-Used"])
         else:
             return 0
 
     def gen_account_stats(self):
+        """Collect Swift account metrics."""
         self.keystone_tenants_map = self._read_keystone_tenants_map(
-            config.get('keystone_tenants_map', None))
-        labels = ['cloud', 'swift_account', 'tenant', 'tenant_id']
+            config.get("keystone_tenants_map", None)
+        )
+        labels = ["cloud", "swift_account", "tenant", "tenant_id"]
         swift_account = Gauge(
-            'swift_account_bytes_used', 'Swift account usage in bytes', labels, registry=self.registry)
+            "swift_account_bytes_used",
+            "Swift account usage in bytes",
+            labels,
+            registry=self.registry,
+        )
 
         for tenant_name, tenant_id in self.keystone_tenants_map.iteritems():
             account = self.reseller_prefix + tenant_id
             bytes_used = self._get_account_usage(account)
 
-            swift_account.labels(config['cloud'], account, tenant_name, tenant_id).set(bytes_used)
+            swift_account.labels(config["cloud"], account, tenant_name, tenant_id).set(
+                bytes_used
+            )
 
     def get_stats(self):
+        """Get Swift account metrics."""
         self.gen_account_stats()
         return generate_latest(self.registry)
 
 
-class ForkingHTTPServer(ForkingMixIn, HTTPServer):
+class ForkingHTTPServer(ForkingMixIn, HTTPServer):  # noqa: D101
     pass
 
 
 # This could perhaps be cleverer, but surely not simpler.
 COLLECTORS = {
-    'cinder': Cinder,
-    'neutron': Neutron,
-    'nova': Nova,
-    'swift': Swift,
-    'swift-account-usage': SwiftAccountUsage,
-    }
+    "cinder": Cinder,
+    "neutron": Neutron,
+    "nova": Nova,
+    "swift": Swift,
+    "swift-account-usage": SwiftAccountUsage,
+}
 
 DATA_GATHERER_USERS = [
-    'cinder',
-    'neutron',
-    'nova',
-    ]
+    "cinder",
+    "neutron",
+    "nova",
+]
 
 
 def get_collectors(collectors):
+    """Return OpenStack collectors names."""
     # For backwards compatibility and when enabled_collectors isn't defined,
     # specify default set of collectors before commit 662b70f and f27cda8.
     # https://github.com/CanonicalLtd/prometheus-openstack-exporter/issues/80
     if not collectors:
-        return ['cinder', 'swift', 'nova', 'neutron']
+        return ["cinder", "swift", "nova", "neutron"]
     return collectors
 
 
-def data_gatherer_needed(config):
-    return set(get_collectors(config.get('enabled_collectors'))).intersection(DATA_GATHERER_USERS)
+def data_gatherer_needed(config):  # noqa D103
+    return set(get_collectors(config.get("enabled_collectors"))).intersection(
+        DATA_GATHERER_USERS
+    )
 
 
 class OpenstackExporterHandler(BaseHTTPRequestHandler):
+    """Manage the webserver that exposes exporter metrics."""
+
     def __init__(self, *args, **kwargs):
+        """Initilize the webserver."""
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
 
-    def do_GET(self):
+    def do_GET(self):  # noqa: D102, N802
         url = urlparse.urlparse(self.path)
-        if url.path == '/metrics':
+        if url.path == "/metrics":
             try:
-                collectors = [COLLECTORS[collector]() for collector in get_collectors(config.get('enabled_collectors'))]
+                collectors = [
+                    COLLECTORS[collector]()
+                    for collector in get_collectors(config.get("enabled_collectors"))
+                ]
                 log.debug("Collecting stats..")
-                output = ''
+                output = ""
                 for collector in collectors:
                     output += collector.get_stats()
                 if data_gatherer:
                     output += data_gatherer.get_stats()
 
                 self.send_response(200)
-                self.send_header('Content-Type', CONTENT_TYPE_LATEST)
+                self.send_header("Content-Type", CONTENT_TYPE_LATEST)
                 self.end_headers()
                 self.wfile.write(output)
             except Exception:
                 self.send_response(500)
                 self.end_headers()
                 self.wfile.write(traceback.format_exc())
-        elif url.path == '/':
+        elif url.path == "/":
             self.send_response(200)
             self.end_headers()
-            self.wfile.write("""<html>
+            self.wfile.write(
+                """<html>
             <head><title>OpenStack Exporter</title></head>
             <body>
             <h1>OpenStack Exporter</h1>
             <p>Visit <code>/metrics</code> to use.</p>
             </body>
-            </html>""")
+            </html>"""
+            )
         else:
             self.send_response(404)
             self.end_headers()
 
 
-def handler(*args, **kwargs):
+def handler(*args, **kwargs):  # noqa: D103
     OpenstackExporterHandler(*args, **kwargs)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(usage=__doc__,
-                                     description='Prometheus OpenStack exporter',
-                                     formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('config_file', nargs='?',
-                        help='Configuration file path',
-                        default='/etc/prometheus/prometheus-openstack-exporter.yaml',
-                        type=argparse.FileType('r'))
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        usage=__doc__,
+        description="Prometheus OpenStack exporter",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument(
+        "config_file",
+        nargs="?",
+        help="Configuration file path",
+        default="/etc/prometheus/prometheus-openstack-exporter.yaml",
+        type=argparse.FileType("r"),
+    )
     args = parser.parse_args()
     log.setLevel(logging.DEBUG)
-    for logsock in ('/dev/log', '/var/run/syslog'):
+    for logsock in ("/dev/log", "/var/run/syslog"):
         if path.exists(logsock):
             log.addHandler(logging.handlers.SysLogHandler(address=logsock))
             break
     else:
         log.addHandler(logging.StreamHandler())
     config = yaml.safe_load(args.config_file.read())
-    numeric_log_level = getattr(logging, config.get('log_level', 'INFO').upper(), None)
+    numeric_log_level = getattr(logging, config.get("log_level", "INFO").upper(), None)
     if not isinstance(numeric_log_level, int):
-        raise ValueError('Invalid log level: %s' % config.get('log_level'))
+        raise ValueError("Invalid log level: %s" % config.get("log_level"))
     log.setLevel(numeric_log_level)
     data_gatherer = None
     if data_gatherer_needed(config):
         data_gatherer = DataGatherer()
         data_gatherer.start()
-    server = ForkingHTTPServer(('', config.get('listen_port')), handler)
+    server = ForkingHTTPServer(("", config.get("listen_port")), handler)
     server.serve_forever()
