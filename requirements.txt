@@ -4,4 +4,6 @@ mock
 prometheus-client
 python-neutronclient
 python-novaclient
+python-cinderclient
+netaddr
 swift
