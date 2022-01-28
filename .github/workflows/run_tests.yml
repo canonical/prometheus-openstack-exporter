@@ -23,7 +23,7 @@ jobs:
         python-version: 2.7
     - name: Install dependencies
       run: |
-        apt install python-virtualenv
+        apt install python-virtualenv make
         python -m pip install --upgrade pip
         python -m pip install tox
     - name: Run lint checkers
