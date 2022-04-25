@@ -29,16 +29,16 @@ import logging.handlers
 import pickle
 import random
 import traceback
-import urlparse
-from BaseHTTPServer import BaseHTTPRequestHandler
-from BaseHTTPServer import HTTPServer
-from SocketServer import ForkingMixIn
+import urllib.parse
+from http.server import BaseHTTPRequestHandler
+from http.server import HTTPServer
 from os import environ as env
 from os import path, rename
+from socketserver import ForkingMixIn
 from threading import Thread
 from time import sleep, time
 
-from cinderclient.v2 import client as cinder_client
+from cinderclient.v3 import client as cinder_client
 
 from netaddr import IPRange
 
@@ -159,7 +159,7 @@ def get_clients():
         cinder = cinder_client.Client(session=sess_admin, endpoint_type=interface)
 
     else:
-        raise (ValueError("Invalid OS_IDENTITY_API_VERSION=%s" % ks_version))
+        raise ValueError
     log.debug("Client setup done, keystone ver {}".format(ks_version))
     return (keystone, nova, neutron, cinder)
 
@@ -405,7 +405,7 @@ class Neutron:
             labels,
             registry=self.registry,
         )
-        for k, v in ips.items():
+        for k, v in list(ips.items()):
             metrics.labels(*k).set(v)
         self.gen_subnet_size()
         return generate_latest(self.registry)
@@ -439,7 +439,7 @@ class Cinder:
         )
         if not self.use_nova_volumes:
             return
-        for t, q in self.prodstack["volume_quotas"].items():
+        for t, q in list(self.prodstack["volume_quotas"].items()):
             if t in self.tenant_map:
                 tenant = self.tenant_map[t]
             else:
@@ -743,7 +743,7 @@ class Nova:
             ["cloud", "tenant", "tenant_id", "type"],
             registry=self.registry,
         )
-        for t, q in self.prodstack["nova_quotas"].items():
+        for t, q in list(self.prodstack["nova_quotas"].items()):
             if t in self.tenant_map:
                 tenant = self.tenant_map[t]
             else:
@@ -989,7 +989,7 @@ class SwiftAccountUsage:
             registry=self.registry,
         )
 
-        for tenant_name, tenant_id in self.keystone_tenants_map.iteritems():
+        for tenant_name, tenant_id in self.keystone_tenants_map.items():
             account = self.reseller_prefix + tenant_id
             bytes_used = self._get_account_usage(account)
 
@@ -1047,7 +1047,7 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
 
     def do_GET(self):  # noqa: D102, N802
-        url = urlparse.urlparse(self.path)
+        url = urllib.parse.urlparse(self.path)
         if url.path == "/metrics":
             try:
                 collectors = [
@@ -1055,7 +1055,7 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
                     for collector in get_collectors(config.get("enabled_collectors"))
                 ]
                 log.debug("Collecting stats..")
-                output = ""
+                output = bytes()
                 for collector in collectors:
                     output += collector.get_stats()
                 if data_gatherer:

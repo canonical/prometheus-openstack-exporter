@@ -1,5 +1,5 @@
 name: prometheus-openstack-exporter
-base: core
+base: core20
 version: git
 summary: Exposes high level OpenStack metrics to Prometheus.
 description: |
@@ -15,10 +15,10 @@ apps:
 parts:
   prometheus-openstack-exporter:
     plugin: python
-    python-version: python2
     source: .
     build-packages:
       - build-essential
+      - liberasurecode-dev
     stage-packages:
       - libdb5.3
       - liberasurecode-dev
