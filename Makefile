@@ -2,7 +2,7 @@ PROJECTPATH = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
 VENV := .venv
 VENV_PIP := $(PROJECTPATH)/$(VENV)/bin/pip
-VENV_PYTHON := $(PROJECTPATH)/$(VENV)/bin/python3.8
+VENV_PYTHON := $(PROJECTPATH)/$(VENV)/bin/python3
 
 EXTRA_PY := $(PROJECTPATH)/prometheus-openstack-exporter
 
@@ -43,5 +43,5 @@ test-python: $(VENV)
 	$(VENV_PYTHON) -m unittest discover tests
 
 $(VENV):
-	virtualenv --system-site-packages -p python3.8 $(PROJECTPATH)/$(VENV)
+	virtualenv --system-site-packages -p python3 $(PROJECTPATH)/$(VENV)
 	$(VENV_PIP) install -I -r requirements.txt
