@@ -385,12 +385,13 @@ class Neutron:
         for n in self.prodstack["networks"]:
             size = 0
             for subnet in n["subnets"]:
-                for pool in self.subnet_map[subnet]["pool"]:
-                    if ":" in pool["start"]:
-                        # Skip IPv6 address pools; they are big enough to
-                        # drown the IPv4 numbers we might care about.
-                        continue
-                    size += IPRange(pool["start"], pool["end"]).size
+                if subnet in self.subnet_map:
+                    for pool in self.subnet_map[subnet]["pool"]:
+                        if ":" in pool["start"]:
+                            # Skip IPv6 address pools; they are big enough to
+                            # drown the IPv4 numbers we might care about.
+                            continue
+                        size += IPRange(pool["start"], pool["end"]).size
             label_values = [config["cloud"], self.network_map[n["id"]]]
             net_size.labels(*label_values).set(size)
 
