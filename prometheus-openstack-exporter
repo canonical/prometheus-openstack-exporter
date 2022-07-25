@@ -1068,6 +1068,7 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(output)
             except Exception:
+                log.exception("")
                 self.send_response(500)
                 self.end_headers()
                 self.wfile.write(traceback.format_exc())
@@ -1086,6 +1087,12 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
+
+    def log_message(self, format, *args):  # noqa: D102
+        log.info(
+            "%s - - [%s] %s\n"
+            % (self.address_string(), self.log_date_time_string(), format % args)
+        )
 
 
 def handler(*args, **kwargs):  # noqa: D103
