@@ -35,10 +35,11 @@ from http.server import HTTPServer
 from os import environ as env
 from os import path, rename
 from socketserver import ForkingMixIn
-from threading import Thread
 from time import sleep, time
 
 from cinderclient.v3 import client as cinder_client
+
+from eventlet.green.threading import Thread
 
 from netaddr import IPRange
 
