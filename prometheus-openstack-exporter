@@ -24,7 +24,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import argparse
 import ast
 import json
-import logging
 import logging.handlers
 import pickle
 import random
@@ -35,11 +34,13 @@ from http.server import HTTPServer
 from os import environ as env
 from os import path, rename
 from socketserver import ForkingMixIn
-from time import sleep, time
 
 from cinderclient.v3 import client as cinder_client
 
+from eventlet.green import asyncore  # noqa: F401
+from eventlet.green import socket  # noqa: F401
 from eventlet.green.threading import Thread
+from eventlet.green.time import sleep, time
 
 from netaddr import IPRange
 
@@ -261,7 +262,9 @@ class DataGatherer(Thread):
                 keystone, nova, neutron, cinder = get_clients()
 
                 prodstack.update(self._get_keystone_info(keystone))
+                sleep(0)
                 prodstack.update(self._get_neutron_info(neutron))
+                sleep(0)
                 prodstack.update(self._get_nova_info(nova, cinder, prodstack))
 
             except Exception:
@@ -1130,4 +1133,7 @@ if __name__ == "__main__":
         data_gatherer = DataGatherer()
         data_gatherer.start()
     server = ForkingHTTPServer(("", config.get("listen_port")), handler)
-    server.serve_forever()
+    server.timeout = config.get("cache_refresh_interval", 900)
+    while True:
+        sleep(0)
+        server.handle_request()
