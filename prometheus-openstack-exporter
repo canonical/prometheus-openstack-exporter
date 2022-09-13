@@ -7,6 +7,7 @@ Authors:
   Jacek Nykis <jacek.nykis@canonical.com>
   Laurent Sesques <laurent.sesques@canonical.com>
   Paul Collins <paul.collins@canonical.com>
+  Chris Martin <chris@c-mart.in>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 3,
@@ -154,11 +155,19 @@ def get_clients():
 
         interface = env.get("OS_INTERFACE", "admin")
 
+        region_name = env.get("OS_REGION_NAME", None)
+
         # Keystone has not switched from interface to endpoint_type yet
         keystone = client.Client(session=sess_domain, interface=interface)
-        nova = nova_client.Client(2, session=sess_admin, endpoint_type=interface)
-        neutron = neutron_client.Client(session=sess_admin, endpoint_type=interface)
-        cinder = cinder_client.Client(session=sess_admin, endpoint_type=interface)
+        nova = nova_client.Client(
+            2, session=sess_admin, endpoint_type=interface, region_name=region_name
+        )
+        neutron = neutron_client.Client(
+            session=sess_admin, endpoint_type=interface, region_name=region_name
+        )
+        cinder = cinder_client.Client(
+            session=sess_admin, endpoint_type=interface, region_name=region_name
+        )
 
     else:
         raise ValueError
