@@ -1,8 +1,8 @@
-FROM python:2.7-alpine
+FROM python:3.10-alpine
 
 RUN \
     apk update && \
-    apk --no-cache -q add build-base linux-headers libffi-dev openssl-dev python2-dev && \
+    apk --no-cache -q add build-base linux-headers libffi-dev openssl-dev python3-dev && \
     apk --no-cache -q add git gcc make autoconf automake libtool libxml2-dev libxslt-dev && \
     cd /tmp && git clone https://github.com/openstack/liberasurecode && \
     cd liberasurecode && ./autogen.sh && ./configure && make && make test && make install && \
