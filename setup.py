@@ -18,6 +18,7 @@ setup(
     keywords=["prometheus", "openstack", "exporter"],
     url="https://github.com/CanonicalLtd/prometheus-openstack-exporter",
     scripts=["prometheus-openstack-exporter"],
+    packages=[],
     install_requires=[
         "prometheus_client",
         "python-keystoneclient<=3.10.0",
