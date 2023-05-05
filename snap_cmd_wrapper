@@ -5,4 +5,4 @@
 # Copy only if not existing
 cp -pn $SNAP/etc/prometheus/prometheus-openstack-exporter.yaml.example $SNAP_DATA/prometheus-openstack-exporter.yaml
 test -r $SNAP_DATA/admin.novarc && . $SNAP_DATA/admin.novarc
-exec $SNAP/bin/prometheus-openstack-exporter $SNAP_DATA/prometheus-openstack-exporter.yaml
+exec $SNAP/bin/python3 $SNAP/bin/prometheus-openstack-exporter $SNAP_DATA/prometheus-openstack-exporter.yaml

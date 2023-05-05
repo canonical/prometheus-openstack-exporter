@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 OpenStack exporter for the prometheus monitoring system.
 
@@ -1017,10 +1017,6 @@ class SwiftAccountUsage:
         return generate_latest(self.registry)
 
 
-class ForkingHTTPServer(ForkingMixIn, HTTPServer):  # noqa: D101
-    pass
-
-
 # This could perhaps be cleverer, but surely not simpler.
 COLLECTORS = {
     "cinder": Cinder,
@@ -1141,7 +1137,7 @@ if __name__ == "__main__":
     if data_gatherer_needed(config):
         data_gatherer = DataGatherer()
         data_gatherer.start()
-    server = ForkingHTTPServer(("", config.get("listen_port")), handler)
+    server = HTTPServer(("", config.get("listen_port")), handler)
     server.timeout = config.get("cache_refresh_interval", 900)
     while True:
         sleep(0)
