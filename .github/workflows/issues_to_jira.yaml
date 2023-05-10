@@ -1,6 +1,14 @@
-# this workflow requires to provide JIRA webhook URL via JIRA_URL GitHub Secret
-# read more: https://support.atlassian.com/cloud-automation/docs/jira-automation-triggers/#Automationtriggers-Incomingwebhook
-# original code source: https://github.com/beliaev-maksim/github-to-jira-automation
+# This is a template `issues_to_jira.yaml` file for snaps
+# This file is managed by bootstack-charms-spec and should not be modified
+# within individual snap repos. https://launchpad.net/bootstack-charms-spec
+
+# This workflow requires to provide JIRA webhook URL via JIRA_URL GitHub Secret.
+#
+# Read more:
+# https://support.atlassian.com/cloud-automation/docs/jira-automation-triggers/#Automationtriggers-Incomingwebhook
+#
+# Original code source:
+# https://github.com/beliaev-maksim/github-to-jira-automation
 
 name: Issues to JIRA
 
