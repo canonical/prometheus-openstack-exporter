@@ -194,10 +194,10 @@ class DataGatherer(Thread):
         """Return a dict containing tentants details."""
         info = {}
         try:
-            info["tenants"] = [x._info for x in keystone.tenants.list()]
+            info["tenants"] = [x._info for x in keystone.projects.list()]
         except AttributeError:
             log.info("Error getting tenants.list, continue with projects.list")
-            info["tenants"] = [x._info for x in keystone.projects.list()]
+            info["tenants"] = [x._info for x in keystone.tenants.list()]
             log.debug("Number of projects: %s", len(info["tenants"]))
         return info
 
