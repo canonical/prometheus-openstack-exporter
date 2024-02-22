@@ -191,12 +191,12 @@ class DataGatherer(Thread):
         self.use_nova_volumes = config.get("use_nova_volumes", True)
 
     def _get_keystone_info(self, keystone):
-        """Return a dict containing tentants details."""
+        """Return a dict containing projects details."""
         info = {}
         try:
             info["tenants"] = [x._info for x in keystone.projects.list()]
         except AttributeError:
-            log.info("Error getting tenants.list, continue with projects.list")
+            log.info("Error getting projects.list, continue with tenants.list")
             info["tenants"] = [x._info for x in keystone.tenants.list()]
             log.debug("Number of projects: %s", len(info["tenants"]))
         return info
