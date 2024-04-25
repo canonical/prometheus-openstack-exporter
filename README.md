@@ -1,12 +1,15 @@
 # Prometheus OpenStack exporter
 
+> [!NOTE]
+> This charm is under maintenance mode. Only critical bugs will be handled.
+
 Exposes high level [OpenStack](http://www.openstack.org/) metrics to [Prometheus](https://prometheus.io/).
 
 Data can be visualised using [Grafana](https://grafana.com/) and the [OpenStack Clouds Dashboard](https://grafana.com/dashboards/7924)
 
-# Deployment
+## Deployment
 
-## Requirements
+### Requirements
 
 ```
 sudo apt-get install python-neutronclient python-novaclient python-keystoneclient python-netaddr python-cinderclient
@@ -22,7 +25,7 @@ On Ubuntu 14.04:
 pip install prometheus_client
 ```
 
-## Installation
+### Installation
 
 ```
 # Copy example config in place, edit to your needs
@@ -92,31 +95,31 @@ docker run \
 
 ```
 
-# Configuration
+## Configuration
 
 Configuration options are documented in prometheus-openstack-exporter.yaml shipped with this project
 
-# FAQ
+## FAQ
 
-## Why are openstack_allocation_ratio values hardcoded?
+### Why are openstack_allocation_ratio values hardcoded?
 
 There is no way to retrieve them using OpenStack API.
 
 Alternative approach could be to hardcode those values in queries but this approach breaks when allocation ratios change.
 
-## Why hardcode swift host list?
+### Why hardcode swift host list?
 
 Same as above, there is no way to retrieve swift hosts using API.
 
-## Why not write dedicated swift exporter?
+### Why not write dedicated swift exporter?
 
 Swift stats are included mainly because they are trivial to retrieve. If and when standalone swift exporter appears we can revisit this approach
 
-## Why cache data?
+### Why cache data?
 
 We are aware that Prometheus best practise is to avoid caching. Unfortunately queries we need to run are very heavy and in bigger clouds can take minutes to execute. This is problematic not only because of delays but also because multiple servers scraping the exporter could have negative impact on the cloud performance
 
-## How are Swift account metrics obtained?
+### How are Swift account metrics obtained?
 
 Fairly simply!  Given a copy of the Swift rings (in fact, we just need
 account.ring.gz) we can load this up and then ask it where particular
@@ -124,7 +127,7 @@ accounts are located in the cluster.  We assume that Swift is
 replicating properly, pick a node at random, and ask it for the
 account's statistics with an HTTP HEAD request, which it returns.
 
-## How hard would it be to export Swift usage by container?
+### How hard would it be to export Swift usage by container?
 
 Sending a GET request to the account URL yields a list of containers
 (probably paginated, so watch out for that!).  In order to write a
@@ -134,7 +137,7 @@ then use container_ring.get_nodes(account, container) and HTTP HEAD on
 one of the resulting nodes to get a containers' statistics, although
 without some caching cleverness this will scale poorly.
 
-# Known Issues
-## EOFError by pickle.py
+## Known Issues
+### EOFError by pickle.py
 
 You should wait. It needs dump file to generate metrics
