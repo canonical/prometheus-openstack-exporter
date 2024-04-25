@@ -1,7 +1,7 @@
 # Prometheus OpenStack exporter
 
 > [!NOTE]
-> This charm is under maintenance mode. Only critical bug will be handled.
+> This charm is under maintenance mode. Only critical bugs will be handled.
 
 Exposes high level [OpenStack](http://www.openstack.org/) metrics to [Prometheus](https://prometheus.io/).
 
