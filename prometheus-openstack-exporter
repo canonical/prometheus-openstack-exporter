@@ -266,14 +266,18 @@ class DataGatherer(Thread):
         log.debug("Starting data gather thread")
         prodstack = {}
         while True:
+            log.debug("DataGatherer: Start refresh")
             start_time = time()
             try:
                 keystone, nova, neutron, cinder = get_clients()
 
+                log.debug("DataGatherer: Update keystone")
                 prodstack.update(self._get_keystone_info(keystone))
                 sleep(0)
+                log.debug("DataGatherer: Update neutron")
                 prodstack.update(self._get_neutron_info(neutron))
                 sleep(0)
+                log.debug("DataGatherer: Update nova")
                 prodstack.update(self._get_nova_info(nova, cinder, prodstack))
 
             except Exception:
@@ -288,6 +292,7 @@ class DataGatherer(Thread):
                 rename(self.cache_file + ".new", self.cache_file)
                 log.debug("Done dumping stats to {}".format(self.cache_file))
             self.duration = time() - start_time
+            log.debug("DataGatherer: Done, duration={}".format(self.duration))
             sleep(self.refresh_interval)
 
     def get_stats(self):
