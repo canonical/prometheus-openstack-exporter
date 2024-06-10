@@ -608,7 +608,7 @@ class Nova:
             arch = "Unknown"
             if not cpu_info:
                 log.info("Could not get cpu info")
-            elif type(cpu_info) != dict:
+            elif not isinstance(cpu_info, dict):
                 cpu_info = json.loads(cpu_info)
                 arch = cpu_info["arch"]
             label_values = [
