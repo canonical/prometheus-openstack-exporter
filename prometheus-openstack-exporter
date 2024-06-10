@@ -22,7 +22,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import argparse
+# We must import and monkey patch before importing any other modules:
+# https://eventlet.readthedocs.io/en/latest/patching.html
+import eventlet
+
+eventlet.patcher.monkey_patch()
+
+import argparse  # noqa: I100
 import ast
 import json
 import logging.handlers
@@ -34,14 +40,10 @@ from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 from os import environ as env
 from os import path, rename
-from socketserver import ForkingMixIn
+from threading import Thread
+from time import sleep, time
 
 from cinderclient.v3 import client as cinder_client
-
-from eventlet.green import asyncore  # noqa: F401
-from eventlet.green import socket  # noqa: F401
-from eventlet.green.threading import Thread
-from eventlet.green.time import sleep, time
 
 from netaddr import IPRange
 
@@ -273,10 +275,8 @@ class DataGatherer(Thread):
 
                 log.debug("DataGatherer: Update keystone")
                 prodstack.update(self._get_keystone_info(keystone))
-                sleep(0)
                 log.debug("DataGatherer: Update neutron")
                 prodstack.update(self._get_neutron_info(neutron))
-                sleep(0)
                 log.debug("DataGatherer: Update nova")
                 prodstack.update(self._get_nova_info(nova, cinder, prodstack))
 
@@ -1143,7 +1143,4 @@ if __name__ == "__main__":
         data_gatherer = DataGatherer()
         data_gatherer.start()
     server = HTTPServer(("", config.get("listen_port")), handler)
-    server.timeout = config.get("cache_refresh_interval", 900)
-    while True:
-        sleep(0)
-        server.handle_request()
+    server.serve_forever()
