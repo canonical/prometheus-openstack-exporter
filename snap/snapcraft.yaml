@@ -32,6 +32,9 @@ parts:
       - python3-setuptools
       - python3-venv
       - python3-wheel
+      # for building lxml
+      - libxml2-dev
+      - libxslt1-dev
     stage-packages:
       - libdb5.3
       - liberasurecode-dev
