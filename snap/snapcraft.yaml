@@ -37,6 +37,11 @@ parts:
       - libxslt1-dev
       # for building cffi
       - libffi-dev
+      # for building cryptography
+      - rustc
+      - cargo
+      - libssl-dev
+      - pkg-config
     stage-packages:
       - libdb5.3
       - liberasurecode-dev
