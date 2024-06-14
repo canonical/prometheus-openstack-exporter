@@ -35,6 +35,8 @@ parts:
       # for building lxml
       - libxml2-dev
       - libxslt1-dev
+      # for building cffi
+      - libffi-dev
     stage-packages:
       - libdb5.3
       - liberasurecode-dev
