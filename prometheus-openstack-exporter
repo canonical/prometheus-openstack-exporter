@@ -494,7 +494,7 @@ class Nova:
             if s["binary"] == "nova-compute":
                 self.services_map[s["host"]] = s["status"]
         for agg in self.prodstack["aggregates"]:
-            self.aggregate_map.update({i: agg["name"] for i in agg["hosts"]})
+            self.aggregate_map.update({i+agg["name"]: agg["name"] for i in agg["hosts"]})
 
     def _get_schedulable_instances(self, host):
         free_vcpus = (
@@ -616,29 +616,34 @@ class Nova:
             elif not isinstance(cpu_info, dict):
                 cpu_info = json.loads(cpu_info)
                 arch = cpu_info["arch"]
-            label_values = [
-                config["cloud"],
-                host,
-                self.aggregate_map.get(host, "unknown"),
-                self.services_map[host],
-                arch,
-            ]
-            # Disabled hypervisors return None below, convert to 0
-            vms.labels(*label_values).set(squashnone(h["running_vms"]))
-            vcpus_total.labels(*label_values).set(squashnone(h["vcpus"]))
-            vcpus_used.labels(*label_values).set(squashnone(h["vcpus_used"]))
-            mem_total.labels(*label_values).set(squashnone(h["memory_mb"]))
-            mem_used.labels(*label_values).set(squashnone(h["memory_mb_used"]))
-            disk_total.labels(*label_values).set(squashnone(h["local_gb"]))
-            disk_used.labels(*label_values).set(squashnone(h["local_gb_used"]))
 
-            if config.get("schedulable_instance_size", False):
-                schedulable_instances.labels(*label_values).set(
-                    self._get_schedulable_instances(h)
-                )
-                schedulable_instances_capacity.labels(*label_values).set(
-                    self._get_schedulable_instances_capacity(h)
-                )
+            for agg in self.prodstack["aggregates"]:
+                if self.aggregate_map.get(host+agg["name"]) is None:
+                    continue
+                label_values = [
+                    config["cloud"],
+                    host,
+                    self.aggregate_map.get(host+agg["name"], "unknown"),
+                    self.services_map[host],
+                    arch,
+                ]
+                log.info(f"Canonical_debug: {label_values}")
+                # Disabled hypervisors return None below, convert to 0
+                vms.labels(*label_values).set(squashnone(h["running_vms"]))
+                vcpus_total.labels(*label_values).set(squashnone(h["vcpus"]))
+                vcpus_used.labels(*label_values).set(squashnone(h["vcpus_used"]))
+                mem_total.labels(*label_values).set(squashnone(h["memory_mb"]))
+                mem_used.labels(*label_values).set(squashnone(h["memory_mb_used"]))
+                disk_total.labels(*label_values).set(squashnone(h["local_gb"]))
+                disk_used.labels(*label_values).set(squashnone(h["local_gb_used"]))
+
+                if config.get("schedulable_instance_size", False):
+                    schedulable_instances.labels(*label_values).set(
+                        self._get_schedulable_instances(h)
+                    )
+                    schedulable_instances_capacity.labels(*label_values).set(
+                        self._get_schedulable_instances_capacity(h)
+                    )
 
     def gen_instance_stats(self):
         """Collect Nova instances statistics."""
