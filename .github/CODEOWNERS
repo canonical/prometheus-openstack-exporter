@@ -1,0 +1,10 @@
+# This file is centrally managed as a template file in https://github.com/canonical/solutions-engineering-automation
+# To update the file:
+# - Edit it in the canonical/solutions-engineering-automation repository.
+# - Open a PR with the changes.
+# - When the PR merges, the soleng-terraform bot will open a PR to the target repositories with the changes.
+#
+# These owners will be the default owners for everything in the repo. Unless a
+# later match takes precedence, @canonical/soleng-reviewers will be requested for
+# review when someone opens a pull request.
+*    @canonical/soleng-reviewers
