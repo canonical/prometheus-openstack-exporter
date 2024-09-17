@@ -1,14 +1,45 @@
-*.pyc
-*.snap
-*.swp
-*~
-.venv
-/bin
-/pkg
-__pycache__
-debian/files
-parts
-prime
-stage
-.idea
+# This file is centrally managed as a template file in https://github.com/canonical/solutions-engineering-automation
+# To update the file:
+# - Edit it in the canonical/solutions-engineering-automation repository.
+# - Open a PR with the changes.
+# - When the PR merges, the soleng-terraform bot will open a PR to the target repositories with the changes.
+
+# Python Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test files and directories
+.pytest_cache/
+.coverage
 .tox
+reports/
+**/report/
+htmlcov/
+.mypy_cache
+
+# python virtual environments (for local dev)
+.venv
+venv
+env
+
+# Build artefacts
+output/
+.build/
+build/
+*.charm
+*.snap
+# python build artefacts
+deb_dist/
+dist/
+*.egg-info/
+
+# Log files
+*.log
+
+# general backup files
+*~
+*.bak
+
+# Note: for editor-specific files, please don't add them here, as they are specific to your environment, not the project.
+# Instead, consider using a global gitignore on your workstation.
