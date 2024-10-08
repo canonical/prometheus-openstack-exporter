@@ -1,3 +1,8 @@
+# This file is centrally managed as a template file in https://github.com/canonical/solutions-engineering-automation
+# To update the file:
+# - Edit it in the canonical/solutions-engineering-automation repository.
+# - Open a PR with the changes.
+# - When the PR merges, the soleng-terraform bot will open a PR to the target repositories with the changes.
 #
 # For more info about the settings, please refre to the github repository:
 # https://github.com/canonical/gh-jira-sync-bot
@@ -16,6 +21,9 @@ settings:
   # Component names are case-sensitive
   components:
     - openstack-exporter
+
+  # (Optional) (Default: false) Add a new comment in GitHub with a link to Jira created issue
+  add_gh_comment: true
 
   # (Optional) (Default: None) Parent Epic key to link the issue to
   epic_key: SOLENG-46
