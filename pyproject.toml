@@ -1,0 +1,87 @@
+# This file is centrally managed as a template file in https://github.com/canonical/solutions-engineering-automation
+# To update the file:
+# - Edit it in the canonical/solutions-engineering-automation repository.
+# - Open a PR with the changes.
+# - When the PR merges, the soleng-terraform bot will open a PR to the target repositories with the changes.
+
+[tool.flake8]
+ignore = ["C901", "D100", "D101", "D102", "D103", "W503", "W504"]
+exclude = ['.eggs', '.git', '.tox', '.venv', '.build', 'build', 'lib', 'report']
+max-line-length = 99
+max-doc-length = 99
+max-complexity = 10
+exclude = [".git", "__pycache__", ".tox", "build", "dist", "*.egg_info", "venv", ".venv"]
+select = ["E", "W", "F", "C", "N", "R", "D", "H"]
+# Ignore W503, E501 because using black creates errors with this
+# Ignore D107 Missing docstring in __init__
+# Ignore D415 Docstring first line punctuation (doesn't make sense for properties)
+# Ignore N818 Exceptions end with "Error" (not all exceptions are errors)
+ignore = ["W503", "E501", "D107", "D415", "N818"]
+# D100, D101, D102, D103: Ignore missing docstrings in tests
+per-file-ignores = ["tests/*:D100,D101,D102,D103,D104"]
+# Check for properly formatted copyright header in each file
+copyright-check = "True"
+copyright-author = "Canonical Ltd."
+copyright-regexp = "Copyright\\s\\d{4}([-,]\\d{4})*\\s+%(author)s"
+
+[tool.black]
+line-length = 99
+exclude = '''
+/(
+    | .eggs
+    | .git
+    | .tox
+    | .venv
+    | .build
+    | build
+    | lib
+    | report
+    | docs
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 99
+skip_glob = [".eggs", ".git", ".tox", ".venv", ".build", "build", "lib", "report"]
+
+[tool.pylint]
+max-line-length = 99
+disable = ["E1102"]
+ignore = ['.eggs', '.git', '.tox', '.venv', '.build', 'lib', 'report', 'tests', 'docs']
+
+[tool.mypy]
+warn_unused_ignores = true
+warn_unused_configs = true
+warn_unreachable = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+no_namespace_packages = true
+exclude = ['.eggs', '.git', '.tox', '.venv', '.build', 'lib', 'report', 'tests', 'docs']
+
+[tool.codespell]
+skip = ".eggs,.tox,.git,.venv,venv,build,.build,lib,report,docs,poetry.lock,htmlcov"
+quiet-level = 3
+check-filenames = true
+ignore-words-list = "assertIn"
+
+## Ignore unsupported imports
+[[tool.mypy.overrides]]
+module = ["charmhelpers.*"]
+ignore_missing_imports = true
+module = ["setuptools"]
+
+[tool.coverage.run]
+relative_files = true
+source = ["."]
+omit = ["tests/**", "docs/**", "lib/**", "snap/**", "build/**", "setup.py"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+
+[tool.coverage.html]
+directory = "tests/report/html"
+
+[tool.coverage.xml]
+output = "tests/report/coverage.xml"
