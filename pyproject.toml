@@ -5,19 +5,30 @@
 # - When the PR merges, the soleng-terraform bot will open a PR to the target repositories with the changes.
 
 [tool.flake8]
-ignore = ["C901", "D100", "D101", "D102", "D103", "W503", "W504"]
-exclude = ['.eggs', '.git', '.tox', '.venv', '.build', 'build', 'lib', 'report']
 max-line-length = 99
 max-doc-length = 99
 max-complexity = 10
-exclude = [".git", "__pycache__", ".tox", "build", "dist", "*.egg_info", "venv", ".venv"]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".tox",
+    ".build",
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg_info",
+    "venv",
+    ".venv",
+    "report",
+    "lib",
+]
 select = ["E", "W", "F", "C", "N", "R", "D", "H"]
 # Ignore W503, E501 because using black creates errors with this
 # Ignore D107 Missing docstring in __init__
 # Ignore D415 Docstring first line punctuation (doesn't make sense for properties)
 # Ignore N818 Exceptions end with "Error" (not all exceptions are errors)
-ignore = ["W503", "E501", "D107", "D415", "N818"]
 # D100, D101, D102, D103: Ignore missing docstrings in tests
+ignore = ["C901", "W503", "E501", "D107", "D415", "N818", "D100", "D101", "D102", "D103"]
 per-file-ignores = ["tests/*:D100,D101,D102,D103,D104"]
 # Check for properly formatted copyright header in each file
 copyright-check = "True"
@@ -67,9 +78,8 @@ ignore-words-list = "assertIn"
 
 ## Ignore unsupported imports
 [[tool.mypy.overrides]]
-module = ["charmhelpers.*"]
+module = ["charmhelpers.*", "setuptools"]
 ignore_missing_imports = true
-module = ["setuptools"]
 
 [tool.coverage.run]
 relative_files = true
