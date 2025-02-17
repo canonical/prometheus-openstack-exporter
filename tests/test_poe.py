@@ -1,4 +1,5 @@
 """Unit Test for Prometheus OpenStack exporter."""
+
 import unittest
 
 import mock
@@ -6,8 +7,8 @@ import mock
 import prometheus_openstack_exporter as poe
 
 
-class TestPrometheusOpenstackExporter(unittest.TestCase):  # noqa: D101
-    def test_data_gatherer_needed(self):  # noqa: D102
+class TestPrometheusOpenstackExporter(unittest.TestCase):
+    def test_data_gatherer_needed(self):
         self.assertTrue(
             poe.data_gatherer_needed(
                 {"enabled_collectors": ["cinder", "neutron", "nova", "swift"]}
@@ -26,13 +27,9 @@ class TestPrometheusOpenstackExporter(unittest.TestCase):  # noqa: D101
                 }
             )
         )
+        self.assertFalse(poe.data_gatherer_needed({"enabled_collectors": ["swift-account-usage"]}))
         self.assertFalse(
-            poe.data_gatherer_needed({"enabled_collectors": ["swift-account-usage"]})
-        )
-        self.assertFalse(
-            poe.data_gatherer_needed(
-                {"enabled_collectors": ["swift", "swift-account-usage"]}
-            )
+            poe.data_gatherer_needed({"enabled_collectors": ["swift", "swift-account-usage"]})
         )
         self.assertEqual(
             poe.data_gatherer_needed(
@@ -46,7 +43,7 @@ class TestPrometheusOpenstackExporter(unittest.TestCase):  # noqa: D101
         )
 
     @mock.patch("prometheus_openstack_exporter.config")
-    def test_get_nova_info(self, config):  # noqa: D102
+    def test_get_nova_info(self, config):
         config.return_value = {}
         prodstack = {"tenants": []}
         nova = mock.Mock()

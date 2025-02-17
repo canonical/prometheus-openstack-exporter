@@ -1,0 +1,107 @@
+name: Tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "**.rst"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Complete git history is required to generate the version from git tags.
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y yamllint
+          python -m pip install --upgrade pip
+          # pin tox to the current major version to avoid
+          # workflows breaking all at once when a new major version is released.
+          python -m pip install 'tox<5'
+
+      - name: Run linters
+        run: tox -e lint
+
+      - name: Lint yaml files
+        run: |
+          yamllint .yamllint snap/snapcraft.yaml
+
+  build:
+    needs:
+      - lint
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on: [[ubuntu-22.04], [self-hosted, jammy, ARM64]]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Complete git history is required to generate the version from git tags.
+
+      - name: Verify snap builds successfully
+        id: build
+        uses: canonical/action-build@v1
+
+      - name: Determine system architecture
+        run: echo "SYSTEM_ARCH=$(uname -m)" >> $GITHUB_ENV
+
+      - name: Upload the built snap
+        uses: actions/upload-artifact@v4
+        with:
+          name: snap_${{ env.SYSTEM_ARCH }}
+          path: ${{ steps.build.outputs.snap }}
+
+  func:
+    needs:
+      - build
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on: [[ubuntu-22.04], [self-hosted, jammy, ARM64]]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Complete git history is required to generate the version from git tags.
+
+      - name: Determine system architecture
+        run: echo "SYSTEM_ARCH=$(uname -m)" >> $GITHUB_ENV
+
+      - name: Download snap file artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: snap_${{ env.SYSTEM_ARCH }}
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'tox<5'
+
+      - name: Run func tests
+        run: |
+          export TEST_SNAP="$(pwd)/$(ls | grep '.*_.*\.snap$')"
+          echo "$TEST_SNAP"
+          tox -e func

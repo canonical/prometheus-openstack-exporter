@@ -1,4 +1,5 @@
 """This module install prometheus-openstack-exporter."""
+
 import os
 
 from setuptools import setup

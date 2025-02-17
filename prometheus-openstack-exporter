@@ -21,51 +21,52 @@ See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-
 # We must import and monkey patch before importing any other modules:
 # https://eventlet.readthedocs.io/en/latest/patching.html
 import eventlet
 
 eventlet.patcher.monkey_patch()
 
-import argparse  # noqa: I100
-import ast
-import json
-import logging.handlers
-import pickle
-import random
-import traceback
-import urllib.parse
-from http.server import BaseHTTPRequestHandler
-from http.server import HTTPServer
-from os import environ as env
-from os import path, rename
-from threading import Thread
-from time import sleep, time
+# Ignore lint errors for E402 (module level import not at top of file),
+# because they cannot be at top of file here because of the monkey patching above.
+import argparse  # noqa: E402
+import ast  # noqa: E402
+import json  # noqa: E402
+import logging.handlers  # noqa: E402
+import pickle  # noqa: E402
+import random  # noqa: E402
+import traceback  # noqa: E402
+import urllib.parse  # noqa: E402
+from http.server import BaseHTTPRequestHandler  # noqa: E402
+from http.server import HTTPServer  # noqa: E402
+from os import environ as env  # noqa: E402
+from os import path, rename  # noqa: E402
+from threading import Thread  # noqa: E402
+from time import sleep, time  # noqa: E402
 
-from cinderclient.v3 import client as cinder_client
+from cinderclient.v3 import client as cinder_client  # noqa: E402
 
-from netaddr import IPRange
+from netaddr import IPRange  # noqa: E402
 
-from neutronclient.v2_0 import client as neutron_client
+from neutronclient.v2_0 import client as neutron_client  # noqa: E402
 
 # from novaclient.v1_1 import client as nova_client
 # http://docs.openstack.org/developer/python-novaclient/api.html
-from novaclient import client as nova_client
+from novaclient import client as nova_client  # noqa: E402
 
-from prometheus_client import (
+from prometheus_client import (  # noqa: E402
     CONTENT_TYPE_LATEST,
     CollectorRegistry,
     Gauge,
     generate_latest,
 )
 
-import requests
+import requests  # noqa: E402
 
-import swift.common.utils
-from swift.common.ring.ring import Ring
+import swift.common.utils  # noqa: E402
+from swift.common.ring.ring import Ring  # noqa: E402
 
-import yaml
+import yaml  # noqa: E402
 
 config = None
 log = logging.getLogger("poe-logger")
@@ -73,11 +74,7 @@ log = logging.getLogger("poe-logger")
 
 def get_creds_dict(*names):
     """Get dictionary with cred envvars."""
-    return {
-        name: env["OS_%s" % name.upper()]
-        for name in names
-        if "OS_%s" % name.upper() in env
-    }
+    return {name: env["OS_%s" % name.upper()] for name in names if "OS_%s" % name.upper() in env}
 
 
 def get_creds_list(*names):
@@ -98,15 +95,11 @@ def get_clients():
 
         # Legacy v2 env vars:
         # OS_USERNAME OS_PASSWORD OS_TENANT_NAME OS_AUTH_URL OS_REGION_NAME
-        ks_creds = get_creds_dict(
-            "username", "password", "tenant_name", "auth_url", "region_name"
-        )
+        ks_creds = get_creds_dict("username", "password", "tenant_name", "auth_url", "region_name")
         cacert = maybe_get_cacert()
         if cacert:
             ks_creds["cacert"] = cacert
-        nova_creds = [2] + get_creds_list(
-            "username", "password", "tenant_name", "auth_url"
-        )
+        nova_creds = [2] + get_creds_list("username", "password", "tenant_name", "auth_url")
         cinder_creds = get_creds_list("username", "password", "tenant_name", "auth_url")
         keystone = keystone_client.Client(**ks_creds)
         nova = nova_client.Client(*nova_creds, cacert=cacert)
@@ -241,9 +234,7 @@ class DataGatherer(Thread):
                     "marker": marker,
                     "status": status,
                 }
-                new_instances = [
-                    x._info for x in nova.servers.list(search_opts=search_opts)
-                ]
+                new_instances = [x._info for x in nova.servers.list(search_opts=search_opts)]
                 if new_instances:
                     marker = new_instances[-1]["id"]
                     info["instances"].extend(new_instances)
@@ -494,21 +485,17 @@ class Nova:
             if s["binary"] == "nova-compute":
                 self.services_map[s["host"]] = s["status"]
         for agg in self.prodstack["aggregates"]:
-            self.aggregate_map.update({host + "_" + agg["name"]: agg["name"]
-                                      for host in agg["hosts"]})
+            self.aggregate_map.update(
+                {host + "_" + agg["name"]: agg["name"] for host in agg["hosts"]}
+            )
 
     def _get_schedulable_instances(self, host):
-        free_vcpus = (
-            host["vcpus"] * config["openstack_allocation_ratio_vcpu"]
-            - host["vcpus_used"]
-        )
+        free_vcpus = host["vcpus"] * config["openstack_allocation_ratio_vcpu"] - host["vcpus_used"]
         free_ram_mbs = (
-            host["memory_mb"] * config["openstack_allocation_ratio_ram"]
-            - host["memory_mb_used"]
+            host["memory_mb"] * config["openstack_allocation_ratio_ram"] - host["memory_mb_used"]
         )
         free_disk_gbs = (
-            host["local_gb"] * config["openstack_allocation_ratio_disk"]
-            - host["local_gb_used"]
+            host["local_gb"] * config["openstack_allocation_ratio_disk"] - host["local_gb_used"]
         )
         s = config["schedulable_instance_size"]
         if s["disk_gbs"] > 0:
@@ -532,9 +519,7 @@ class Nova:
                 int(capacity_disk_gbs / s["disk_gbs"]),
             )
         else:
-            return min(
-                int(capacity_vcpus / s["vcpu"]), int(capacity_ram_mbs / s["ram_mbs"])
-            )
+            return min(int(capacity_vcpus / s["vcpu"]), int(capacity_ram_mbs / s["ram_mbs"]))
 
     def gen_hypervisor_stats(self):
         """Collect Nova Hypervisors statistics."""
@@ -706,21 +691,13 @@ class Nova:
                 tenant = self.tenant_map[i["tenant_id"]]
             else:
                 tenant = "orphaned"
-            instances.labels(
-                config["cloud"], i["name"], tenant, i["tenant_id"], i["status"]
-            ).inc()
+            instances.labels(config["cloud"], i["name"], tenant, i["tenant_id"], i["status"]).inc()
 
             if i["flavor"]["id"] in self.flavor_map:
                 flavor = self.flavor_map[i["flavor"]["id"]]
-                res_ram.labels(config["cloud"], tenant, i["tenant_id"]).inc(
-                    flavor["ram"]
-                )
-                res_vcpus.labels(config["cloud"], tenant, i["tenant_id"]).inc(
-                    flavor["vcpus"]
-                )
-                res_disk.labels(config["cloud"], tenant, i["tenant_id"]).inc(
-                    flavor["disk"]
-                )
+                res_ram.labels(config["cloud"], tenant, i["tenant_id"]).inc(flavor["ram"])
+                res_vcpus.labels(config["cloud"], tenant, i["tenant_id"]).inc(flavor["vcpus"])
+                res_disk.labels(config["cloud"], tenant, i["tenant_id"]).inc(flavor["disk"])
             else:
                 missing_flavors = True
 
@@ -758,17 +735,11 @@ class Nova:
             registry=self.registry,
         )
         label_values = [config["cloud"], "vcpu"]
-        openstack_overcommit.labels(*label_values).set(
-            config["openstack_allocation_ratio_vcpu"]
-        )
+        openstack_overcommit.labels(*label_values).set(config["openstack_allocation_ratio_vcpu"])
         label_values = [config["cloud"], "ram"]
-        openstack_overcommit.labels(*label_values).set(
-            config["openstack_allocation_ratio_ram"]
-        )
+        openstack_overcommit.labels(*label_values).set(config["openstack_allocation_ratio_ram"])
         label_values = [config["cloud"], "disk"]
-        openstack_overcommit.labels(*label_values).set(
-            config["openstack_allocation_ratio_disk"]
-        )
+        openstack_overcommit.labels(*label_values).set(config["openstack_allocation_ratio_disk"])
 
     def gen_quota_stats(self):
         """Collect Nova compute quotas."""
@@ -811,9 +782,7 @@ class Nova:
             else:
                 for tt in ["limit", "in_use", "reserved"]:
                     cores.labels(config["cloud"], tenant, t, tt).inc(q["cores"][tt])
-                    fips.labels(config["cloud"], tenant, t, tt).inc(
-                        q["floating_ips"][tt]
-                    )
+                    fips.labels(config["cloud"], tenant, t, tt).inc(q["floating_ips"][tt])
                     inst.labels(config["cloud"], tenant, t, tt).inc(q["instances"][tt])
                     ram.labels(config["cloud"], tenant, t, tt).inc(q["ram"][tt])
 
@@ -888,9 +857,7 @@ class Swift:
             except requests.exceptions.RequestException:
                 continue
             for ring in ["accounts", "objects", "containers"]:
-                swift_quarantine.labels(config["cloud"], h, ring).set(
-                    r.json().get(ring)
-                )
+                swift_quarantine.labels(config["cloud"], h, ring).set(r.json().get(ring))
 
     def _get_object_ring_replication_stats(self, h, swift_repl_duration):
         # Object replication is special
@@ -925,9 +892,7 @@ class Swift:
         except requests.exceptions.RequestException:
             return
         try:
-            swift_repl_duration.labels(config["cloud"], h, ring).set(
-                r.json()["replication_time"]
-            )
+            swift_repl_duration.labels(config["cloud"], h, ring).set(r.json()["replication_time"])
         except TypeError:
             print(traceback.format_exc())
 
@@ -958,9 +923,7 @@ class Swift:
         for h in self.swift_hosts:
             self._get_object_ring_replication_stats(h, swift_repl_duration)
             for ring in ["account", "container"]:
-                self._get_ring_replication_stats(
-                    ring, h, swift_repl_duration, swift_repl
-                )
+                self._get_ring_replication_stats(ring, h, swift_repl_duration, swift_repl)
 
     def get_stats(self):
         """Collect all Swift statistics."""
@@ -1046,9 +1009,7 @@ class SwiftAccountUsage:
             account = self.reseller_prefix + tenant_id
             bytes_used = self._get_account_usage(account)
 
-            swift_account.labels(config["cloud"], account, tenant_name, tenant_id).set(
-                bytes_used
-            )
+            swift_account.labels(config["cloud"], account, tenant_name, tenant_id).set(bytes_used)
 
     def get_stats(self):
         """Get Swift account metrics."""
@@ -1082,10 +1043,8 @@ def get_collectors(collectors):
     return collectors
 
 
-def data_gatherer_needed(config):  # noqa D103
-    return set(get_collectors(config.get("enabled_collectors"))).intersection(
-        DATA_GATHERER_USERS
-    )
+def data_gatherer_needed(config):
+    return set(get_collectors(config.get("enabled_collectors"))).intersection(DATA_GATHERER_USERS)
 
 
 class OpenstackExporterHandler(BaseHTTPRequestHandler):
@@ -1095,7 +1054,7 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
         """Initilize the webserver."""
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
 
-    def do_GET(self):  # noqa: D102, N802
+    def do_GET(self):  # noqa: N802
         url = urllib.parse.urlparse(self.path)
         if url.path == "/metrics":
             try:
@@ -1135,14 +1094,14 @@ class OpenstackExporterHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-    def log_message(self, format, *args):  # noqa: D102
+    def log_message(self, format, *args):
         log.info(
             "%s - - [%s] %s\n"
             % (self.address_string(), self.log_date_time_string(), format % args)
         )
 
 
-def handler(*args, **kwargs):  # noqa: D103
+def handler(*args, **kwargs):
     OpenstackExporterHandler(*args, **kwargs)
 
 
