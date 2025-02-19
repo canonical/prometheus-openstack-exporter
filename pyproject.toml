@@ -28,7 +28,7 @@ select = ["E", "W", "F", "C", "N", "R", "D", "H"]
 # Ignore D415 Docstring first line punctuation (doesn't make sense for properties)
 # Ignore N818 Exceptions end with "Error" (not all exceptions are errors)
 # D100, D101, D102, D103: Ignore missing docstrings in tests
-ignore = ["C1001", "W503", "E501", "D107", "D415", "N818", "D100", "D101", "D102", "D103", "W504"]
+ignore = ["C901", "W503", "E501", "D107", "D415", "N818", "D100", "D101", "D102", "D103", "W504"]
 per-file-ignores = ["tests/*:D100,D101,D102,D103,D104"]
 # Check for properly formatted copyright header in each file
 copyright-check = "True"
