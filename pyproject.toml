@@ -20,6 +20,7 @@ exclude = [
     "venv",
     ".venv",
     "report",
+    "docs",
 ]
 select = ["E", "W", "F", "C", "N", "R", "D", "H"]
 # Ignore W503, E501 because using black creates errors with this
