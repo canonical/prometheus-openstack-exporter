@@ -17,6 +17,7 @@ reports/
 **/report/
 htmlcov/
 .mypy_cache
+.unit-state.db
 
 # python virtual environments (for local dev)
 .venv
