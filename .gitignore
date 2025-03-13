@@ -11,7 +11,7 @@ __pycache__/
 
 # Test files and directories
 .pytest_cache/
-.coverage
+.coverage*
 .tox
 reports/
 **/report/
