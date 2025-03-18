@@ -186,11 +186,11 @@ jobs:
           # Create the path that is expected to have a coverage.xml for tics
           mkdir -p tests/report/
 
-          coverage_files=./artifacts/.coverage*
+          coverage_files=(./artifacts/.coverage*)
 
-          if [ -n "$coverage_files" ]; then
-            echo "Merging coverage files: $coverage_files"
-            coverage combine $coverage_files
+          if [ -e "${coverage_files[0]}" ]; then
+            echo "Merging coverage files: ${coverage_files[*]}"
+            coverage combine "${coverage_files[@]}"
             coverage xml -o tests/report/coverage.xml
           else
             echo "No coverage files found, skipping merge"
