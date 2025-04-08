@@ -44,29 +44,23 @@ from os import path, rename  # noqa: E402
 from threading import Thread  # noqa: E402
 from time import sleep, time  # noqa: E402
 
+import requests  # noqa: E402
+import swift.common.utils  # noqa: E402
+import yaml  # noqa: E402
 from cinderclient.v3 import client as cinder_client  # noqa: E402
-
 from netaddr import IPRange  # noqa: E402
-
 from neutronclient.v2_0 import client as neutron_client  # noqa: E402
 
 # from novaclient.v1_1 import client as nova_client
 # http://docs.openstack.org/developer/python-novaclient/api.html
 from novaclient import client as nova_client  # noqa: E402
-
 from prometheus_client import (  # noqa: E402
     CONTENT_TYPE_LATEST,
     CollectorRegistry,
     Gauge,
     generate_latest,
 )
-
-import requests  # noqa: E402
-
-import swift.common.utils  # noqa: E402
 from swift.common.ring.ring import Ring  # noqa: E402
-
-import yaml  # noqa: E402
 
 config = None
 log = logging.getLogger("poe-logger")
@@ -107,8 +101,8 @@ def get_clients():
         cinder = cinder_client.Client(*cinder_creds, cacert=cacert)
 
     elif ks_version == 3:
-        from keystoneauth1.identity import v3
         from keystoneauth1 import session
+        from keystoneauth1.identity import v3
         from keystoneclient.v3 import client
 
         # A little helper for the poor human trying to figure out which env vars
@@ -116,7 +110,6 @@ def get_clients():
         #  OS_USERNAME OS_PASSWORD OS_USER_DOMAIN_NAME OS_AUTH_URL
         #  OS_PROJECT_DOMAIN_NAME OS_PROJECT_DOMAIN_ID OS_PROJECT_ID OS_DOMAIN_NAME
         # Keystone needs domain creds for e.g. project list
-
         # project and project_domain are needed for listing projects
         ks_creds_domain = get_creds_dict(
             "username",
