@@ -3,10 +3,9 @@
 import unittest
 
 from mock import Mock, call, patch
+from requests.structures import CaseInsensitiveDict
 
 import prometheus_openstack_exporter as poe
-
-from requests.structures import CaseInsensitiveDict
 
 
 class TestSwiftAccountUsage(unittest.TestCase):

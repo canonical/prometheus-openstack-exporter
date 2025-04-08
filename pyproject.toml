@@ -4,6 +4,8 @@
 # - Open a PR with the changes.
 # - When the PR merges, the soleng-terraform bot will open a PR to the target repositories with the changes.
 
+[tool.setuptools_scm]
+
 [tool.flake8]
 max-line-length = 99
 max-doc-length = 99
