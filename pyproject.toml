@@ -63,7 +63,7 @@ exclude = '''
 [tool.isort]
 profile = "black"
 line_length = 99
-skip_glob = [".eggs", ".git", ".tox", ".venv", ".build", "build", "lib", "report", "mod", "hooks/charmhelpers", "tests/charmhelpers"]
+skip_glob = [".eggs", ".git", ".tox", ".venv", ".build", "build", "lib", "report", "mod/*", "hooks/charmhelpers", "tests/charmhelpers"]
 
 [tool.pylint]
 max-line-length = 99
