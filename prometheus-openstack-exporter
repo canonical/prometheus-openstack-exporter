@@ -611,7 +611,14 @@ class Nova:
                 ]
                 # Disabled hypervisors return None below, convert to 0
                 vms.labels(*label_values).set(squashnone(h["running_vms"]))
-                vcpus_total.labels(*label_values).set(squashnone(h["vcpus"]))
+                if h.get("cpu_info"):
+                    vcpus_total.labels(*label_values).set(
+                        squashnone(eval(h["cpu_info"])["topology"]["cores"])
+                        * squashnone(eval(h["cpu_info"])["topology"]["threads"])
+                        * squashnone(eval(h["cpu_info"])["topology"]["sockets"])
+                    )
+                else:
+                    vcpus_total.labels(*label_values).set(squashnone(h["vcpus"]))
                 vcpus_used.labels(*label_values).set(squashnone(h["vcpus_used"]))
                 mem_total.labels(*label_values).set(squashnone(h["memory_mb"]))
                 mem_used.labels(*label_values).set(squashnone(h["memory_mb_used"]))
@@ -637,7 +644,14 @@ class Nova:
                 ]
                 # Disabled hypervisors return None below, convert to 0
                 vms.labels(*label_values).set(squashnone(h["running_vms"]))
-                vcpus_total.labels(*label_values).set(squashnone(h["vcpus"]))
+                if h.get("cpu_info"):
+                    vcpus_total.labels(*label_values).set(
+                        squashnone(eval(h["cpu_info"])["topology"]["cores"])
+                        * squashnone(eval(h["cpu_info"])["topology"]["threads"])
+                        * squashnone(eval(h["cpu_info"])["topology"]["sockets"])
+                    )
+                else:
+                    vcpus_total.labels(*label_values).set(squashnone(h["vcpus"]))
                 vcpus_used.labels(*label_values).set(squashnone(h["vcpus_used"]))
                 mem_total.labels(*label_values).set(squashnone(h["memory_mb"]))
                 mem_used.labels(*label_values).set(squashnone(h["memory_mb_used"]))
